@@ -3,9 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import PaymentsSection from '../components/vendorpurchase/PaymentsSection'
+import DebitNotesSection from '../components/vendorpurchase/DebitNotesSection'
 
 interface VendorPurchaseData {
   id: string
+  vendor_id: string
   purchase_number: string
   supplier_invoice_no: string | null
   purchase_date: string
@@ -45,6 +48,7 @@ const paymentStatusStyles: Record<string, string> = {
 export default function VendorPurchaseDetail() {
   const { id } = useParams<{ id: string }>()
   const { membership } = useAuth()
+  const isAdmin = membership?.role === 'admin'
 
   const [tenantName, setTenantName] = useState('')
   const [purchase, setPurchase] = useState<VendorPurchaseData | null>(null)
@@ -264,6 +268,26 @@ export default function VendorPurchaseDetail() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="no-print mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Payments</h2>
+        <PaymentsSection
+          purchaseId={purchase.id}
+          vendorId={purchase.vendor_id}
+          grandTotal={purchase.grand_total}
+          isAdmin={isAdmin}
+        />
+      </div>
+
+      <div className="no-print mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Debit Notes</h2>
+        <DebitNotesSection
+          purchaseId={purchase.id}
+          vendorId={purchase.vendor_id}
+          items={items.map((item) => ({ id: item.id, item_name: item.item_name }))}
+          isAdmin={isAdmin}
+        />
       </div>
     </div>
   )

@@ -12,8 +12,12 @@ const links = [
   { to: '/vendor-purchases', label: 'Purchases' },
 ]
 
+const adminOnlyLinks = [{ to: '/finance', label: 'Finance' }]
+
 export default function TopNav() {
   const { user, membership, signOut } = useAuth()
+  const visibleLinks =
+    membership?.role === 'admin' ? [...links, ...adminOnlyLinks] : links
 
   return (
     <header className="no-print sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
@@ -23,7 +27,7 @@ export default function TopNav() {
             Orbit Gadgets
           </span>
           <nav className="flex items-center gap-1">
-            {links.map((link) => (
+            {visibleLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}

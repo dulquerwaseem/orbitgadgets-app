@@ -21,6 +21,7 @@ import Vendors from './pages/Vendors'
 import VendorPurchases from './pages/VendorPurchases'
 import VendorPurchaseNew from './pages/VendorPurchaseNew'
 import VendorPurchaseDetail from './pages/VendorPurchaseDetail'
+import Finance from './pages/Finance'
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
               <Route path="/vendor-purchases" element={<VendorPurchases />} />
               <Route path="/vendor-purchases/new" element={<VendorPurchaseNew />} />
               <Route path="/vendor-purchases/:id" element={<VendorPurchaseDetail />} />
+              <Route path="/finance" element={<Finance />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
