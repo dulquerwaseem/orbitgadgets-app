@@ -11,6 +11,9 @@ import InvoiceDetail from './pages/InvoiceDetail'
 import JobSheets from './pages/JobSheets'
 import JobSheetNew from './pages/JobSheetNew'
 import JobSheetDetail from './pages/JobSheetDetail'
+import Quotations from './pages/Quotations'
+import QuotationNew from './pages/QuotationNew'
+import QuotationDetail from './pages/QuotationDetail'
 
 function App() {
   return (
@@ -29,6 +32,9 @@ function App() {
               <Route path="/job-sheets" element={<JobSheets />} />
               <Route path="/job-sheets/new" element={<JobSheetNew />} />
               <Route path="/job-sheets/:id" element={<JobSheetDetail />} />
+              <Route path="/quotations" element={<Quotations />} />
+              <Route path="/quotations/new" element={<QuotationNew />} />
+              <Route path="/quotations/:id" element={<QuotationDetail />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
