@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const links = [
+  { to: '/invoices', label: 'Invoices' },
   { to: '/products', label: 'Products' },
   { to: '/spare-parts', label: 'Spare Parts' },
 ]
@@ -10,7 +11,7 @@ export default function TopNav() {
   const { user, membership, signOut } = useAuth()
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
+    <header className="no-print sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
           <span className="text-lg font-semibold tracking-tight text-slate-900">
