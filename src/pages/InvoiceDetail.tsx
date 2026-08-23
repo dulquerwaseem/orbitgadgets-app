@@ -11,6 +11,9 @@ interface InvoiceDetailData {
   customer_gst: string | null
   eway_bill: string | null
   discount: number
+  taxable_value: number
+  cgst_amount: number
+  sgst_amount: number
   final_price: number
   labor_charge: number
   labor_sac_code: string | null
@@ -282,6 +285,9 @@ export default function InvoiceDetail() {
                     {item.ram ? ` · ${item.ram}` : ''}
                     {item.storage ? ` · ${item.storage}` : ''}
                   </p>
+                  {item.description && (
+                    <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+                  )}
                 </td>
                 <td className="py-2.5 pr-4 text-slate-500">{item.hsn_code ?? '—'}</td>
                 <td className="py-2.5 pr-4 text-slate-500">{item.quantity}</td>
@@ -315,6 +321,22 @@ export default function InvoiceDetail() {
                 <span>Discount</span>
                 <span>−{formatCurrencyExact(invoice.discount)}</span>
               </div>
+            )}
+            <div className="flex justify-between border-t border-slate-100 pt-2 font-medium text-slate-700">
+              <span>Taxable Value</span>
+              <span>{formatCurrencyExact(invoice.taxable_value)}</span>
+            </div>
+            {invoice.invoice_series === 'gst' && (
+              <>
+                <div className="flex justify-between text-slate-500">
+                  <span>CGST (9%)</span>
+                  <span>{formatCurrencyExact(invoice.cgst_amount)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>SGST (9%)</span>
+                  <span>{formatCurrencyExact(invoice.sgst_amount)}</span>
+                </div>
+              </>
             )}
             <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
               <span>Total</span>

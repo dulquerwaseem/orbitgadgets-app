@@ -41,6 +41,8 @@ interface SparePartOption {
   quantity: number
 }
 
+type EntryMode = 'search' | 'manual'
+
 const typeLabels: Record<LineItemType, string> = {
   product: 'Product',
   spare: 'Spare Part',
@@ -61,9 +63,21 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
   const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
   const [selectedSparePart, setSelectedSparePart] = useState<SparePartOption | null>(null)
 
+  const [productEntryMode, setProductEntryMode] = useState<EntryMode>('search')
+  const [manualName, setManualName] = useState('')
+  const [manualBrand, setManualBrand] = useState('')
+  const [manualSerial, setManualSerial] = useState('')
+  const [manualRam, setManualRam] = useState('')
+  const [manualStorage, setManualStorage] = useState('')
+
+  const [sparePartEntryMode, setSparePartEntryMode] = useState<EntryMode>('search')
+  const [manualPartName, setManualPartName] = useState('')
+  const [manualPartNumber, setManualPartNumber] = useState('')
+
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
+  const [description, setDescription] = useState('')
 
   async function loadOptions() {
     const [{ data: productData }, { data: spareData }] = await Promise.all([
@@ -91,14 +105,45 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     setSearch('')
     setSelectedProduct(null)
     setSelectedSparePart(null)
+    setProductEntryMode('search')
+    setManualName('')
+    setManualBrand('')
+    setManualSerial('')
+    setManualRam('')
+    setManualStorage('')
+    setSparePartEntryMode('search')
+    setManualPartName('')
+    setManualPartNumber('')
     setName('')
     setQuantity('1')
     setUnitPrice('')
+    setDescription('')
   }
 
   function handleTypeChange(next: LineItemType) {
     setItemType(next)
     resetSelection()
+  }
+
+  function handleProductEntryModeChange(next: EntryMode) {
+    setProductEntryMode(next)
+    setSelectedProduct(null)
+    setSearch('')
+    setManualName('')
+    setManualBrand('')
+    setManualSerial('')
+    setManualRam('')
+    setManualStorage('')
+    setUnitPrice('')
+  }
+
+  function handleSparePartEntryModeChange(next: EntryMode) {
+    setSparePartEntryMode(next)
+    setSelectedSparePart(null)
+    setSearch('')
+    setManualPartName('')
+    setManualPartNumber('')
+    setUnitPrice('')
   }
 
   const filteredProducts = useMemo(() => {
@@ -132,24 +177,29 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
 
   const canAdd =
     itemType === 'product'
-      ? selectedProduct !== null && unitPrice !== ''
+      ? productEntryMode === 'search'
+        ? selectedProduct !== null && unitPrice !== ''
+        : manualName.trim() !== '' && unitPrice !== ''
       : itemType === 'spare'
-        ? selectedSparePart !== null && unitPrice !== '' && Number(quantity) > 0
+        ? sparePartEntryMode === 'search'
+          ? selectedSparePart !== null && unitPrice !== '' && Number(quantity) > 0
+          : manualPartName.trim() !== '' && unitPrice !== '' && Number(quantity) > 0
         : name.trim() !== '' && unitPrice !== '' && Number(quantity) > 0
 
   function handleAdd() {
     if (!canAdd) return
 
+    const trimmedDescription = description.trim() || null
     let draft: DraftItem
 
-    if (itemType === 'product' && selectedProduct) {
+    if (itemType === 'product' && productEntryMode === 'search' && selectedProduct) {
       draft = {
         key: crypto.randomUUID(),
         item_type: 'product',
         product_id: selectedProduct.id,
         spare_part_id: null,
         item_name: selectedProduct.name,
-        description: null,
+        description: trimmedDescription,
         hsn_code: selectedProduct.hsn_code,
         serial_imei: selectedProduct.serial_imei,
         ram: selectedProduct.ram,
@@ -158,14 +208,32 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         unit_price: Number(unitPrice),
         cost_price: selectedProduct.purchase_price,
       }
-    } else if (itemType === 'spare' && selectedSparePart) {
+    } else if (itemType === 'product' && productEntryMode === 'manual') {
+      const trimmedBrand = manualBrand.trim()
+      const trimmedName = manualName.trim()
+      draft = {
+        key: crypto.randomUUID(),
+        item_type: 'product',
+        product_id: null,
+        spare_part_id: null,
+        item_name: trimmedBrand ? `${trimmedBrand} ${trimmedName}` : trimmedName,
+        description: trimmedDescription,
+        hsn_code: null,
+        serial_imei: manualSerial.trim() || null,
+        ram: manualRam.trim() || null,
+        storage: manualStorage.trim() || null,
+        quantity: 1,
+        unit_price: Number(unitPrice),
+        cost_price: null,
+      }
+    } else if (itemType === 'spare' && sparePartEntryMode === 'search' && selectedSparePart) {
       draft = {
         key: crypto.randomUUID(),
         item_type: 'spare',
         product_id: null,
         spare_part_id: selectedSparePart.id,
         item_name: selectedSparePart.name,
-        description: null,
+        description: trimmedDescription,
         hsn_code: selectedSparePart.hsn_code,
         serial_imei: null,
         ram: null,
@@ -174,6 +242,22 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         unit_price: Number(unitPrice),
         cost_price: selectedSparePart.purchase_price,
       }
+    } else if (itemType === 'spare' && sparePartEntryMode === 'manual') {
+      draft = {
+        key: crypto.randomUUID(),
+        item_type: 'spare',
+        product_id: null,
+        spare_part_id: null,
+        item_name: manualPartName.trim(),
+        description: trimmedDescription,
+        hsn_code: null,
+        serial_imei: null,
+        ram: null,
+        storage: null,
+        quantity: Number(quantity),
+        unit_price: Number(unitPrice),
+        cost_price: null,
+      }
     } else {
       draft = {
         key: crypto.randomUUID(),
@@ -181,7 +265,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         product_id: null,
         spare_part_id: null,
         item_name: name.trim(),
-        description: null,
+        description: trimmedDescription,
         hsn_code: null,
         serial_imei: null,
         ram: null,
@@ -215,7 +299,35 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         ))}
       </div>
 
+      {itemType === 'product' && (
+        <div className="mb-3 flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleProductEntryModeChange('search')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              productEntryMode === 'search'
+                ? 'bg-slate-200 text-slate-900'
+                : 'text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            Search Existing
+          </button>
+          <button
+            type="button"
+            onClick={() => handleProductEntryModeChange('manual')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              productEntryMode === 'manual'
+                ? 'bg-slate-200 text-slate-900'
+                : 'text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            Enter Manually
+          </button>
+        </div>
+      )}
+
       {itemType === 'product' &&
+        productEntryMode === 'search' &&
         (selectedProduct ? (
           <div className="mb-3 flex items-center justify-between rounded-lg bg-white px-3 py-2">
             <div>
@@ -259,7 +371,80 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
           </div>
         ))}
 
+      {itemType === 'product' && productEntryMode === 'manual' && (
+        <div className="mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              required
+              placeholder="Item name"
+              value={manualName}
+              onChange={(e) => setManualName(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            />
+            <input
+              type="text"
+              placeholder="Brand (optional)"
+              value={manualBrand}
+              onChange={(e) => setManualBrand(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="text"
+              placeholder="Serial/IMEI (optional)"
+              value={manualSerial}
+              onChange={(e) => setManualSerial(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            />
+            <input
+              type="text"
+              placeholder="RAM (optional)"
+              value={manualRam}
+              onChange={(e) => setManualRam(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            />
+            <input
+              type="text"
+              placeholder="Storage (optional)"
+              value={manualStorage}
+              onChange={(e) => setManualStorage(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            />
+          </div>
+        </div>
+      )}
+
+      {itemType === 'spare' && (
+        <div className="mb-3 flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleSparePartEntryModeChange('search')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              sparePartEntryMode === 'search'
+                ? 'bg-slate-200 text-slate-900'
+                : 'text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            Search Existing
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSparePartEntryModeChange('manual')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              sparePartEntryMode === 'manual'
+                ? 'bg-slate-200 text-slate-900'
+                : 'text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            Enter Manually
+          </button>
+        </div>
+      )}
+
       {itemType === 'spare' &&
+        sparePartEntryMode === 'search' &&
         (selectedSparePart ? (
           <div className="mb-3 flex items-center justify-between rounded-lg bg-white px-3 py-2">
             <div>
@@ -301,6 +486,26 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
           </div>
         ))}
 
+      {itemType === 'spare' && sparePartEntryMode === 'manual' && (
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <input
+            type="text"
+            required
+            placeholder="Part name"
+            value={manualPartName}
+            onChange={(e) => setManualPartName(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+          <input
+            type="text"
+            placeholder="Part number (optional)"
+            value={manualPartNumber}
+            onChange={(e) => setManualPartNumber(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </div>
+      )}
+
       {(itemType === 'service' || itemType === 'custom') && (
         <div className="mb-3">
           <input
@@ -312,6 +517,16 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
           />
         </div>
       )}
+
+      <div className="mb-3">
+        <textarea
+          placeholder="Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+        />
+      </div>
 
       <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
         <div>

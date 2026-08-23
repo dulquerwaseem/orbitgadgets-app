@@ -46,7 +46,10 @@ export default function InvoiceNew() {
   )
   const laborChargeNum = Number(laborCharge) || 0
   const discountNum = Number(discount) || 0
-  const grandTotal = itemsSubtotal + laborChargeNum - discountNum
+  const taxableValue = itemsSubtotal + laborChargeNum - discountNum
+  const cgstAmount = invoiceSeries === 'gst' ? Math.round(taxableValue * 0.09 * 100) / 100 : 0
+  const sgstAmount = invoiceSeries === 'gst' ? Math.round(taxableValue * 0.09 * 100) / 100 : 0
+  const grandTotal = taxableValue + cgstAmount + sgstAmount
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((item) => item.key !== key))
@@ -308,6 +311,22 @@ export default function InvoiceNew() {
                 <span>Discount</span>
                 <span>−{formatCurrencyExact(discountNum)}</span>
               </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 font-medium text-slate-700">
+                <span>Taxable Value</span>
+                <span>{formatCurrencyExact(taxableValue)}</span>
+              </div>
+              {invoiceSeries === 'gst' && (
+                <>
+                  <div className="flex justify-between text-slate-500">
+                    <span>CGST (9%)</span>
+                    <span>{formatCurrencyExact(cgstAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>SGST (9%)</span>
+                    <span>{formatCurrencyExact(sgstAmount)}</span>
+                  </div>
+                </>
+              )}
               <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
                 <span>Total</span>
                 <span>{formatCurrencyExact(grandTotal)}</span>
