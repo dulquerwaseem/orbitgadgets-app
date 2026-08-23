@@ -8,6 +8,8 @@ const links = [
   { to: '/credit-notes', label: 'Credit Notes' },
   { to: '/products', label: 'Products' },
   { to: '/spare-parts', label: 'Spare Parts' },
+  { to: '/vendors', label: 'Vendors' },
+  { to: '/vendor-purchases', label: 'Purchases' },
 ]
 
 export default function TopNav() {

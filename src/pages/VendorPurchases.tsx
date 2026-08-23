@@ -1,0 +1,122 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+
+interface VendorPurchaseRow {
+  id: string
+  purchase_number: string
+  purchase_date: string
+  payment_status: string
+  grand_total: number
+  vendors: { name: string } | null
+}
+
+const paymentStatusStyles: Record<string, string> = {
+  paid: 'bg-emerald-50 text-emerald-600',
+  partial: 'bg-amber-50 text-amber-600',
+  unpaid: 'bg-red-50 text-red-500',
+}
+
+export default function VendorPurchases() {
+  const { membership } = useAuth()
+  const isAdmin = membership?.role === 'admin'
+
+  const [purchases, setPurchases] = useState<VendorPurchaseRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function loadPurchases() {
+    setLoading(true)
+    setError(null)
+    const { data, error } = await supabase
+      .from('vendor_purchases')
+      .select('id, purchase_number, purchase_date, payment_status, grand_total, vendors(name)')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setPurchases((data as unknown as VendorPurchaseRow[]) ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    void loadPurchases()
+  }, [])
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Vendor Purchases</h1>
+          <p className="mt-1 text-sm text-slate-400">{purchases.length} purchases</p>
+        </div>
+        {isAdmin && (
+          <Link
+            to="/vendor-purchases/new"
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          >
+            New Purchase
+          </Link>
+        )}
+      </div>
+
+      {error && (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+      )}
+
+      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        {loading ? (
+          <p className="px-6 py-10 text-center text-sm text-slate-400">Loading purchases…</p>
+        ) : purchases.length === 0 ? (
+          <p className="px-6 py-10 text-center text-sm text-slate-400">
+            No purchases yet.{isAdmin ? ' Create your first one.' : ''}
+          </p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
+                <th className="px-6 py-3">Purchase Number</th>
+                <th className="px-6 py-3">Vendor</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Payment</th>
+                <th className="px-6 py-3">Grand Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {purchases.map((purchase) => (
+                <tr key={purchase.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                  <td className="px-0 py-0">
+                    <Link
+                      to={`/vendor-purchases/${purchase.id}`}
+                      className="block px-6 py-3.5 font-medium text-slate-900"
+                    >
+                      {purchase.purchase_number}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-3.5 text-slate-500">{purchase.vendors?.name ?? '—'}</td>
+                  <td className="px-6 py-3.5 text-slate-500">{formatDate(purchase.purchase_date)}</td>
+                  <td className="px-6 py-3.5">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                        paymentStatusStyles[purchase.payment_status] ?? 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {formatLabel(purchase.payment_status)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3.5 font-medium text-slate-700">
+                    {formatCurrencyExact(purchase.grand_total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
