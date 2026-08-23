@@ -8,6 +8,9 @@ import SpareParts from './pages/SpareParts'
 import Invoices from './pages/Invoices'
 import InvoiceNew from './pages/InvoiceNew'
 import InvoiceDetail from './pages/InvoiceDetail'
+import JobSheets from './pages/JobSheets'
+import JobSheetNew from './pages/JobSheetNew'
+import JobSheetDetail from './pages/JobSheetDetail'
 
 function App() {
   return (
@@ -23,6 +26,9 @@ function App() {
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/invoices/new" element={<InvoiceNew />} />
               <Route path="/invoices/:id" element={<InvoiceDetail />} />
+              <Route path="/job-sheets" element={<JobSheets />} />
+              <Route path="/job-sheets/new" element={<JobSheetNew />} />
+              <Route path="/job-sheets/:id" element={<JobSheetDetail />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

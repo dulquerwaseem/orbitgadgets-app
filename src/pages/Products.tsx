@@ -14,6 +14,7 @@ interface Product {
   purchase_price: number | null
   selling_price: number | null
   status: string | null
+  description: string | null
   created_at: string
 }
 
@@ -25,6 +26,7 @@ interface ProductFormValues {
   purchase_price: string
   selling_price: string
   status: string
+  description: string
 }
 
 const emptyForm: ProductFormValues = {
@@ -35,6 +37,7 @@ const emptyForm: ProductFormValues = {
   purchase_price: '',
   selling_price: '',
   status: 'available',
+  description: '',
 }
 
 const conditionOptions = ['new', 'like_new', 'good', 'fair', 'poor']
@@ -69,7 +72,7 @@ export default function Products() {
     setError(null)
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, category, brand, condition, purchase_price, selling_price, status, created_at')
+      .select('id, name, category, brand, condition, purchase_price, selling_price, status, description, created_at')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -107,6 +110,7 @@ export default function Products() {
       purchase_price: product.purchase_price?.toString() ?? '',
       selling_price: product.selling_price?.toString() ?? '',
       status: product.status ?? 'available',
+      description: product.description ?? '',
     })
     setFormError(null)
     setModalOpen(true)
@@ -127,6 +131,7 @@ export default function Products() {
       purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
       selling_price: form.selling_price ? Number(form.selling_price) : null,
       status: form.status || null,
+      description: form.description.trim() || null,
     }
 
     const result = editingId
@@ -336,6 +341,18 @@ export default function Products() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Description (optional)
+            </label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
           </div>
 
           {formError && (

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 export interface Customer {
   id: string

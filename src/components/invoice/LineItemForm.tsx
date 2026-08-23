@@ -78,6 +78,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
   const [quantity, setQuantity] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
   const [description, setDescription] = useState('')
+  const [hsnCode, setHsnCode] = useState('')
 
   async function loadOptions() {
     const [{ data: productData }, { data: spareData }] = await Promise.all([
@@ -118,6 +119,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     setQuantity('1')
     setUnitPrice('')
     setDescription('')
+    setHsnCode('')
   }
 
   function handleTypeChange(next: LineItemType) {
@@ -135,6 +137,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     setManualRam('')
     setManualStorage('')
     setUnitPrice('')
+    setHsnCode('')
   }
 
   function handleSparePartEntryModeChange(next: EntryMode) {
@@ -144,6 +147,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     setManualPartName('')
     setManualPartNumber('')
     setUnitPrice('')
+    setHsnCode('')
   }
 
   const filteredProducts = useMemo(() => {
@@ -168,11 +172,13 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
   function selectProduct(p: ProductOption) {
     setSelectedProduct(p)
     setUnitPrice(p.selling_price?.toString() ?? '')
+    setHsnCode(p.hsn_code ?? '')
   }
 
   function selectSparePart(p: SparePartOption) {
     setSelectedSparePart(p)
     setUnitPrice(p.selling_price?.toString() ?? '')
+    setHsnCode(p.hsn_code ?? '')
   }
 
   const canAdd =
@@ -190,6 +196,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     if (!canAdd) return
 
     const trimmedDescription = description.trim() || null
+    const trimmedHsnCode = hsnCode.trim() || null
     let draft: DraftItem
 
     if (itemType === 'product' && productEntryMode === 'search' && selectedProduct) {
@@ -200,7 +207,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         spare_part_id: null,
         item_name: selectedProduct.name,
         description: trimmedDescription,
-        hsn_code: selectedProduct.hsn_code,
+        hsn_code: trimmedHsnCode,
         serial_imei: selectedProduct.serial_imei,
         ram: selectedProduct.ram,
         storage: selectedProduct.storage,
@@ -218,7 +225,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         spare_part_id: null,
         item_name: trimmedBrand ? `${trimmedBrand} ${trimmedName}` : trimmedName,
         description: trimmedDescription,
-        hsn_code: null,
+        hsn_code: trimmedHsnCode,
         serial_imei: manualSerial.trim() || null,
         ram: manualRam.trim() || null,
         storage: manualStorage.trim() || null,
@@ -234,7 +241,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         spare_part_id: selectedSparePart.id,
         item_name: selectedSparePart.name,
         description: trimmedDescription,
-        hsn_code: selectedSparePart.hsn_code,
+        hsn_code: trimmedHsnCode,
         serial_imei: null,
         ram: null,
         storage: null,
@@ -250,7 +257,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         spare_part_id: null,
         item_name: manualPartName.trim(),
         description: trimmedDescription,
-        hsn_code: null,
+        hsn_code: trimmedHsnCode,
         serial_imei: null,
         ram: null,
         storage: null,
@@ -266,7 +273,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         spare_part_id: null,
         item_name: name.trim(),
         description: trimmedDescription,
-        hsn_code: null,
+        hsn_code: itemType === 'service' ? trimmedHsnCode : null,
         serial_imei: null,
         ram: null,
         storage: null,
@@ -513,6 +520,21 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
             placeholder={itemType === 'service' ? 'e.g. CMOS Battery Replacement' : 'e.g. Phone Cover'}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </div>
+      )}
+
+      {itemType !== 'custom' && (
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-medium text-slate-500">
+            {itemType === 'service' ? 'SAC Code' : 'HSN Code'}
+          </label>
+          <input
+            type="text"
+            placeholder="Optional"
+            value={hsnCode}
+            onChange={(e) => setHsnCode(e.target.value)}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
           />
         </div>

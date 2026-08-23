@@ -14,6 +14,7 @@ interface SparePart {
   reorder_level: number | null
   purchase_price: number | null
   selling_price: number | null
+  description: string | null
   created_at: string
 }
 
@@ -25,6 +26,7 @@ interface SparePartFormValues {
   reorder_level: string
   purchase_price: string
   selling_price: string
+  description: string
 }
 
 const emptyForm: SparePartFormValues = {
@@ -35,6 +37,7 @@ const emptyForm: SparePartFormValues = {
   reorder_level: '',
   purchase_price: '',
   selling_price: '',
+  description: '',
 }
 
 function isLowStock(part: SparePart) {
@@ -64,7 +67,7 @@ export default function SpareParts() {
     const { data, error } = await supabase
       .from('spare_parts')
       .select(
-        'id, name, category, part_number, quantity, reorder_level, purchase_price, selling_price, created_at',
+        'id, name, category, part_number, quantity, reorder_level, purchase_price, selling_price, description, created_at',
       )
       .order('created_at', { ascending: false })
 
@@ -103,6 +106,7 @@ export default function SpareParts() {
       reorder_level: part.reorder_level?.toString() ?? '',
       purchase_price: part.purchase_price?.toString() ?? '',
       selling_price: part.selling_price?.toString() ?? '',
+      description: part.description ?? '',
     })
     setFormError(null)
     setModalOpen(true)
@@ -123,6 +127,7 @@ export default function SpareParts() {
       reorder_level: form.reorder_level ? Number(form.reorder_level) : null,
       purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
       selling_price: form.selling_price ? Number(form.selling_price) : null,
+      description: form.description.trim() || null,
     }
 
     const result = editingId
@@ -322,6 +327,18 @@ export default function SpareParts() {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Description (optional)
+            </label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

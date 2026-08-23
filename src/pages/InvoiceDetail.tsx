@@ -268,7 +268,6 @@ export default function InvoiceDetail() {
           <thead>
             <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-400">
               <th className="py-2 pr-4">Item</th>
-              <th className="py-2 pr-4">HSN/SAC</th>
               <th className="py-2 pr-4">Qty</th>
               <th className="py-2 pr-4">Unit Price</th>
               <th className="py-2 text-right">Total</th>
@@ -285,11 +284,15 @@ export default function InvoiceDetail() {
                     {item.ram ? ` · ${item.ram}` : ''}
                     {item.storage ? ` · ${item.storage}` : ''}
                   </p>
+                  {item.hsn_code && (
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
+                    </p>
+                  )}
                   {item.description && (
                     <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
                   )}
                 </td>
-                <td className="py-2.5 pr-4 text-slate-500">{item.hsn_code ?? '—'}</td>
                 <td className="py-2.5 pr-4 text-slate-500">{item.quantity}</td>
                 <td className="py-2.5 pr-4 text-slate-500">{formatCurrencyExact(item.unit_price)}</td>
                 <td className="py-2.5 text-right text-slate-700">

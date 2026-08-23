@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatLabel } from '../lib/format'
-import CustomerPicker from '../components/invoice/CustomerPicker'
-import type { Customer } from '../components/invoice/CustomerPicker'
+import CustomerPicker from '../components/CustomerPicker'
+import type { Customer } from '../components/CustomerPicker'
 import JobSheetPicker from '../components/invoice/JobSheetPicker'
 import type { JobSheetOption } from '../components/invoice/JobSheetPicker'
 import LineItemForm from '../components/invoice/LineItemForm'
@@ -15,14 +15,33 @@ type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 
 const paymentStatusOptions: PaymentStatus[] = ['unpaid', 'partial', 'paid']
 
+// Passed via navigate(..., { state }) from a job sheet's "Mark Delivered & Bill" button.
+interface InvoiceNewLocationState {
+  jobSheetId?: string
+  jobSheetNumber?: string
+  deviceName?: string | null
+  customer?: Customer
+}
+
 export default function InvoiceNew() {
   const { membership } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const prefill = (location.state ?? null) as InvoiceNewLocationState | null
 
   const [invoiceSeries, setInvoiceSeries] = useState<InvoiceSeries>('non_gst')
-  const [customer, setCustomer] = useState<Customer | null>(null)
-  const [jobSheet, setJobSheet] = useState<JobSheetOption | null>(null)
-  const [customerGst, setCustomerGst] = useState('')
+  const [customer, setCustomer] = useState<Customer | null>(() => prefill?.customer ?? null)
+  const [jobSheet, setJobSheet] = useState<JobSheetOption | null>(() =>
+    prefill?.jobSheetId
+      ? {
+          id: prefill.jobSheetId,
+          job_number: prefill.jobSheetNumber ?? '',
+          device_name: prefill.deviceName ?? null,
+          customer_id: prefill.customer?.id ?? null,
+        }
+      : null,
+  )
+  const [customerGst, setCustomerGst] = useState(() => prefill?.customer?.gst_number ?? '')
   const [ewayBill, setEwayBill] = useState('')
 
   const [items, setItems] = useState<DraftItem[]>([])
