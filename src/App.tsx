@@ -14,6 +14,9 @@ import JobSheetDetail from './pages/JobSheetDetail'
 import Quotations from './pages/Quotations'
 import QuotationNew from './pages/QuotationNew'
 import QuotationDetail from './pages/QuotationDetail'
+import CreditNotes from './pages/CreditNotes'
+import CreditNoteNew from './pages/CreditNoteNew'
+import CreditNoteDetail from './pages/CreditNoteDetail'
 
 function App() {
   return (
@@ -29,12 +32,15 @@ function App() {
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/invoices/new" element={<InvoiceNew />} />
               <Route path="/invoices/:id" element={<InvoiceDetail />} />
+              <Route path="/invoices/:invoiceId/credit-notes/new" element={<CreditNoteNew />} />
               <Route path="/job-sheets" element={<JobSheets />} />
               <Route path="/job-sheets/new" element={<JobSheetNew />} />
               <Route path="/job-sheets/:id" element={<JobSheetDetail />} />
               <Route path="/quotations" element={<Quotations />} />
               <Route path="/quotations/new" element={<QuotationNew />} />
               <Route path="/quotations/:id" element={<QuotationDetail />} />
+              <Route path="/credit-notes" element={<CreditNotes />} />
+              <Route path="/credit-notes/:id" element={<CreditNoteDetail />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

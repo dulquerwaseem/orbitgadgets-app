@@ -40,6 +40,13 @@ interface InvoiceItemRow {
   total_price: number
 }
 
+interface CreditNoteRow {
+  id: string
+  credit_note_number: string
+  return_date: string
+  total_refunded: number
+}
+
 const paymentStatusStyles: Record<string, string> = {
   paid: 'bg-emerald-50 text-emerald-600',
   partial: 'bg-amber-50 text-amber-600',
@@ -54,6 +61,7 @@ export default function InvoiceDetail() {
   const [tenantName, setTenantName] = useState<string>('')
   const [invoice, setInvoice] = useState<InvoiceDetailData | null>(null)
   const [items, setItems] = useState<InvoiceItemRow[]>([])
+  const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
   const [supersededBy, setSupersededBy] = useState<{ id: string; invoice_number: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,23 +71,31 @@ export default function InvoiceDetail() {
     setLoading(true)
     setError(null)
 
-    const [{ data: invoiceData, error: invoiceError }, { data: itemsData, error: itemsError }] =
-      await Promise.all([
-        supabase
-          .from('invoices')
-          .select(
-            '*, customers(name, phone, address, gst_number), job_sheets!invoices_job_sheet_id_fkey(job_number)',
-          )
-          .eq('id', invoiceId)
-          .single(),
-        supabase
-          .from('invoice_items')
-          .select(
-            'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price',
-          )
-          .eq('invoice_id', invoiceId)
-          .order('created_at', { ascending: true }),
-      ])
+    const [
+      { data: invoiceData, error: invoiceError },
+      { data: itemsData, error: itemsError },
+      { data: creditNoteData },
+    ] = await Promise.all([
+      supabase
+        .from('invoices')
+        .select(
+          '*, customers(name, phone, address, gst_number), job_sheets!invoices_job_sheet_id_fkey(job_number)',
+        )
+        .eq('id', invoiceId)
+        .single(),
+      supabase
+        .from('invoice_items')
+        .select(
+          'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price',
+        )
+        .eq('invoice_id', invoiceId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('credit_notes')
+        .select('id, credit_note_number, return_date, total_refunded')
+        .eq('invoice_id', invoiceId)
+        .order('created_at', { ascending: false }),
+    ])
 
     if (invoiceError || !invoiceData) {
       setError(invoiceError?.message ?? 'Invoice not found')
@@ -94,6 +110,7 @@ export default function InvoiceDetail() {
 
     setInvoice(invoiceData as unknown as InvoiceDetailData)
     setItems(itemsData ?? [])
+    setCreditNotes(creditNoteData ?? [])
 
     if ((invoiceData as unknown as InvoiceDetailData).superseded) {
       const { data: newer } = await supabase
@@ -166,11 +183,26 @@ export default function InvoiceDetail() {
           <Link to="/invoices" className="text-sm text-slate-400 hover:text-slate-600">
             ← All Invoices
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-            {invoice.invoice_number}
-          </h1>
+          <div className="mt-1 flex items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+              {invoice.invoice_number}
+            </h1>
+            {creditNotes.length > 0 && (
+              <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                Returned
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
+          {!invoice.superseded && (
+            <Link
+              to={`/invoices/${invoice.id}/credit-notes/new`}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            >
+              Create Credit Note
+            </Link>
+          )}
           {invoice.invoice_series === 'non_gst' && !invoice.superseded && (
             <button
               onClick={() => void handleConvert()}
@@ -356,6 +388,29 @@ export default function InvoiceDetail() {
           </div>
         </div>
       </div>
+
+      {creditNotes.length > 0 && (
+        <div className="no-print mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Credit Notes</h2>
+          <div className="space-y-2">
+            {creditNotes.map((cn) => (
+              <Link
+                key={cn.id}
+                to={`/credit-notes/${cn.id}`}
+                className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-2.5 text-sm transition-colors hover:bg-slate-50"
+              >
+                <div>
+                  <span className="font-medium text-slate-900">{cn.credit_note_number}</span>
+                  <span className="ml-2 text-slate-400">{formatDate(cn.return_date)}</span>
+                </div>
+                <span className="font-medium text-slate-700">
+                  −{formatCurrencyExact(cn.total_refunded)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

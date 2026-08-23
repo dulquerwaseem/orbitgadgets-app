@@ -5,6 +5,7 @@ const links = [
   { to: '/job-sheets', label: 'Job Sheets' },
   { to: '/quotations', label: 'Quotations' },
   { to: '/invoices', label: 'Invoices' },
+  { to: '/credit-notes', label: 'Credit Notes' },
   { to: '/products', label: 'Products' },
   { to: '/spare-parts', label: 'Spare Parts' },
 ]
