@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Wallet, TrendingUp, Scale } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
@@ -199,37 +200,53 @@ export default function Finance() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Finance</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Finance</h1>
         <p className="mt-1 text-sm text-slate-400">Expenses, ledger, and a rough monthly picture.</p>
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Expenses This Month
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
+        <div className="rounded-2xl bg-white p-5 card-shadow">
+          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+            <Wallet className="h-4 w-4 text-slate-500" strokeWidth={2} />
+          </div>
+          <p className="text-2xl font-semibold text-slate-900">
             {formatCurrencyExact(monthlyExpenses)}
           </p>
-        </div>
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Revenue This Month
+          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+            Expenses This Month
           </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
+        </div>
+        <div className="rounded-2xl bg-white p-5 card-shadow">
+          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+            <TrendingUp className="h-4 w-4 text-slate-500" strokeWidth={2} />
+          </div>
+          <p className="accent-text text-2xl font-semibold">
             {formatCurrencyExact(monthlyRevenue)}
           </p>
-        </div>
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Profit Estimate
+          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+            Revenue This Month
           </p>
+        </div>
+        <div className="rounded-2xl bg-white p-5 card-shadow">
+          <div
+            className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full ${
+              profitEstimate >= 0 ? 'bg-emerald-50' : 'bg-red-50'
+            }`}
+          >
+            <Scale
+              className={`h-4 w-4 ${profitEstimate >= 0 ? 'text-emerald-600' : 'text-red-500'}`}
+              strokeWidth={2}
+            />
+          </div>
           <p
-            className={`mt-1 text-2xl font-semibold ${
+            className={`text-2xl font-semibold ${
               profitEstimate >= 0 ? 'text-emerald-600' : 'text-red-500'
             }`}
           >
             {formatCurrencyExact(profitEstimate)}
+          </p>
+          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+            Profit Estimate
           </p>
         </div>
       </div>
@@ -260,13 +277,13 @@ export default function Finance() {
           <div className="mb-4 flex justify-end">
             <button
               onClick={openAddModal}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
             >
               Add Expense
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <div className="overflow-hidden rounded-2xl bg-white card-shadow">
             {expensesLoading ? (
               <p className="px-6 py-10 text-center text-sm text-slate-400">Loading expenses…</p>
             ) : expenses.length === 0 ? (
@@ -323,7 +340,7 @@ export default function Finance() {
       )}
 
       {tab === 'ledger' && (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <div className="overflow-hidden rounded-2xl bg-white card-shadow">
           {ledgerLoading ? (
             <p className="px-6 py-10 text-center text-sm text-slate-400">Loading ledger…</p>
           ) : ledgerEntries.length === 0 ? (
@@ -449,7 +466,7 @@ export default function Finance() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Expense'}
             </button>

@@ -149,7 +149,7 @@ export default function DebitNotesSection({
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
         >
           Create Debit Note
         </button>
@@ -236,7 +236,7 @@ export default function DebitNotesSection({
               type="button"
               onClick={() => void handleSubmit()}
               disabled={saving}
-              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Debit Note'}
             </button>

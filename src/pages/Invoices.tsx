@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 
@@ -20,6 +20,7 @@ const paymentStatusStyles: Record<string, string> = {
 }
 
 export default function Invoices() {
+  const navigate = useNavigate()
   const [invoices, setInvoices] = useState<InvoiceRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,12 +50,12 @@ export default function Invoices() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Invoices</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Invoices</h1>
           <p className="mt-1 text-sm text-slate-400">{invoices.length} invoices</p>
         </div>
         <Link
           to="/invoices/new"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
         >
           New Invoice
         </Link>
@@ -64,7 +65,7 @@ export default function Invoices() {
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoices…</p>
         ) : invoices.length === 0 ? (
@@ -87,19 +88,20 @@ export default function Invoices() {
               {invoices.map((invoice) => (
                 <tr
                   key={invoice.id}
-                  className="cursor-pointer border-b border-slate-50 last:border-0 hover:bg-slate-50/60"
+                  onClick={() => navigate(`/invoices/${invoice.id}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/invoices/${invoice.id}`)
+                  }}
+                  className="cursor-pointer border-b border-slate-50 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 active:bg-slate-100"
                 >
-                  <td className="px-0 py-0">
-                    <Link to={`/invoices/${invoice.id}`} className="block px-6 py-3.5 font-medium text-slate-900">
-                      {invoice.invoice_number}
-                    </Link>
-                  </td>
+                  <td className="px-6 py-3.5 font-medium text-slate-900">{invoice.invoice_number}</td>
                   <td className="px-6 py-3.5 text-slate-500">{invoice.customers?.name ?? '—'}</td>
                   <td className="px-6 py-3.5">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                         invoice.invoice_series === 'gst'
-                          ? 'bg-sky-50 text-sky-600'
+                          ? 'bg-violet-50 text-violet-600'
                           : 'bg-slate-100 text-slate-500'
                       }`}
                     >

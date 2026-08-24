@@ -169,7 +169,7 @@ export default function CreditNoteNew() {
         <Link to={`/invoices/${invoice.id}`} className="text-sm text-slate-400 hover:text-slate-600">
           ← {invoice.invoice_number}
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-900">
           Create Credit Note
         </h1>
         <p className="mt-1 text-sm text-slate-400">
@@ -180,7 +180,7 @@ export default function CreditNoteNew() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Items to Return</h2>
             <div className="overflow-hidden rounded-xl border border-slate-100">
               <table className="w-full text-left text-sm">
@@ -225,7 +225,7 @@ export default function CreditNoteNew() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Details</h2>
             <div className="space-y-4">
               <div>
@@ -254,7 +254,7 @@ export default function CreditNoteNew() {
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Refund Summary</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-500">
@@ -291,7 +291,7 @@ export default function CreditNoteNew() {
               type="button"
               onClick={() => void handleSubmit()}
               disabled={saving}
-              className="mt-4 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Credit Note'}
             </button>

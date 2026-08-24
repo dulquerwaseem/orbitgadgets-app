@@ -130,13 +130,13 @@ export default function InvoiceNew() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">New Invoice</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">New Invoice</h1>
         <p className="mt-1 text-sm text-slate-400">Create an invoice with or without a job sheet.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Invoice Series</h2>
             <div className="flex gap-2">
               {(['non_gst', 'gst'] as InvoiceSeries[]).map((series) => (
@@ -182,17 +182,17 @@ export default function InvoiceNew() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Customer</h2>
             <CustomerPicker value={customer} onChange={handleCustomerChange} />
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Job Sheet (optional)</h2>
             <JobSheetPicker value={jobSheet} onChange={setJobSheet} />
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Line Items</h2>
 
             {items.length > 0 && (
@@ -241,7 +241,7 @@ export default function InvoiceNew() {
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Charges</h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -282,7 +282,7 @@ export default function InvoiceNew() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Payment</h2>
             <div className="space-y-3">
               <div>
@@ -315,7 +315,7 @@ export default function InvoiceNew() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Summary</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-500">
@@ -360,7 +360,7 @@ export default function InvoiceNew() {
               type="button"
               onClick={() => void handleSubmit()}
               disabled={saving}
-              className="mt-4 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Invoice'}
             </button>

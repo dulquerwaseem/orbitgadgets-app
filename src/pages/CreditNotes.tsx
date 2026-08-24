@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate } from '../lib/format'
 
@@ -13,6 +13,7 @@ interface CreditNoteRow {
 }
 
 export default function CreditNotes() {
+  const navigate = useNavigate()
   const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +41,7 @@ export default function CreditNotes() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Credit Notes</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Credit Notes</h1>
         <p className="mt-1 text-sm text-slate-400">{creditNotes.length} credit notes</p>
       </div>
 
@@ -48,7 +49,7 @@ export default function CreditNotes() {
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading credit notes…</p>
         ) : creditNotes.length === 0 ? (
@@ -68,12 +69,16 @@ export default function CreditNotes() {
             </thead>
             <tbody>
               {creditNotes.map((cn) => (
-                <tr key={cn.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                  <td className="px-0 py-0">
-                    <Link to={`/credit-notes/${cn.id}`} className="block px-6 py-3.5 font-medium text-slate-900">
-                      {cn.credit_note_number}
-                    </Link>
-                  </td>
+                <tr
+                  key={cn.id}
+                  onClick={() => navigate(`/credit-notes/${cn.id}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/credit-notes/${cn.id}`)
+                  }}
+                  className="cursor-pointer border-b border-slate-50 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 active:bg-slate-100"
+                >
+                  <td className="px-6 py-3.5 font-medium text-slate-900">{cn.credit_note_number}</td>
                   <td className="px-6 py-3.5 text-slate-500">{cn.invoices?.invoice_number ?? '—'}</td>
                   <td className="px-6 py-3.5 text-slate-500">{cn.customers?.name ?? '—'}</td>
                   <td className="px-6 py-3.5 text-slate-500">{formatDate(cn.return_date)}</td>

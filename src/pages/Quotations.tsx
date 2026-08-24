@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 
@@ -19,6 +19,7 @@ const statusStyles: Record<string, string> = {
 }
 
 export default function Quotations() {
+  const navigate = useNavigate()
   const [quotations, setQuotations] = useState<QuotationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,12 +48,12 @@ export default function Quotations() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Quotations</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Quotations</h1>
           <p className="mt-1 text-sm text-slate-400">{quotations.length} quotations</p>
         </div>
         <Link
           to="/quotations/new"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
         >
           New Quotation
         </Link>
@@ -62,7 +63,7 @@ export default function Quotations() {
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading quotations…</p>
         ) : quotations.length === 0 ? (
@@ -83,21 +84,22 @@ export default function Quotations() {
             </thead>
             <tbody>
               {quotations.map((quotation) => (
-                <tr key={quotation.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                  <td className="px-0 py-0">
-                    <Link
-                      to={`/quotations/${quotation.id}`}
-                      className="block px-6 py-3.5 font-medium text-slate-900"
-                    >
-                      {quotation.quotation_number}
-                    </Link>
-                  </td>
+                <tr
+                  key={quotation.id}
+                  onClick={() => navigate(`/quotations/${quotation.id}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/quotations/${quotation.id}`)
+                  }}
+                  className="cursor-pointer border-b border-slate-50 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 active:bg-slate-100"
+                >
+                  <td className="px-6 py-3.5 font-medium text-slate-900">{quotation.quotation_number}</td>
                   <td className="px-6 py-3.5 text-slate-500">{quotation.customers?.name ?? '—'}</td>
                   <td className="px-6 py-3.5">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                         quotation.invoice_series === 'gst'
-                          ? 'bg-sky-50 text-sky-600'
+                          ? 'bg-violet-50 text-violet-600'
                           : 'bg-slate-100 text-slate-500'
                       }`}
                     >

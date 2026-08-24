@@ -1,4 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-accent-from: #fc575b;
+  --color-accent-to: #8c52fd;
+  --color-app-bg: #f7f6f2;
+}
+
+body {
+  background: var(--color-app-bg);
+  font-family: var(--font-sans);
+}
+
+/* Page/section titles get the more characterful heading font; everything
+   else (tables, forms, data) stays on the clean geometric body sans. */
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+/* Centralized soft card shadow so every card across the app stays visually
+   identical from one shared definition instead of a repeated arbitrary
+   Tailwind value. */
+.card-shadow {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 2px 8px -2px rgba(15, 23, 42, 0.06),
+    0 16px 32px -20px rgba(15, 23, 42, 0.16);
+}
+
+/* The category-color system (rose/violet/amber/teal per sidebar section)
+   has been walked back -- it read as decorative rather than restrained.
+   The brand gradient now appears in exactly three places, full stop: the
+   active sidebar item's edge indicator, the logo mark itself, and one
+   "hero number" per relevant page (e.g. Finance's Revenue This Month).
+   Everywhere else is black/white/grey on purpose. */
+
+/* The real logo mark (used at small size when the sidebar is collapsed).
+   This is literally the logo, not a UI accent, so it's allowed to stay at
+   full saturation the way the source PNG's dot actually looks. */
+.brand-dot {
+  background-image: linear-gradient(135deg, var(--color-accent-from), var(--color-accent-to));
+}
+
+/* Active sidebar item's edge indicator -- a 4px sliver on the dark active
+   pill. Toned down via opacity rather than a solid fill, but this and the
+   logo are the only two chrome elements that carry any brand color. */
+.accent-indicator {
+  background-image: linear-gradient(135deg, var(--color-accent-from), var(--color-accent-to));
+  opacity: 0.6;
+}
+
+/* One "hero number" per relevant page (currently just Finance's Revenue
+   This Month) -- a single soft accent tone, not a two-hue gradient clip
+   (which reads muddy at body sizes). Deliberately not reused elsewhere. */
+.accent-text {
+  color: #8c52fd;
+}
 
 @media print {
   .no-print {
@@ -7,5 +66,12 @@
 
   body {
     background: white !important;
+  }
+
+  /* .card-shadow is a plain CSS class, not a Tailwind utility, so the
+     print:shadow-none variant used alongside it on printable detail pages
+     can't cancel it on its own -- do it here instead. */
+  .card-shadow {
+    box-shadow: none !important;
   }
 }

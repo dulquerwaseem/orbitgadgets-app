@@ -578,7 +578,7 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
           type="button"
           onClick={handleAdd}
           disabled={!canAdd}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-40"
         >
           Add Item
         </button>

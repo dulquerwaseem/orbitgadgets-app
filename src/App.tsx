@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
+import Overview from './pages/Overview'
 import Products from './pages/Products'
 import SpareParts from './pages/SpareParts'
 import Invoices from './pages/Invoices'
@@ -31,7 +32,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/invoices" replace />} />
+              <Route path="/" element={<Navigate to="/overview" replace />} />
+              <Route path="/overview" element={<Overview />} />
               <Route path="/products" element={<Products />} />
               <Route path="/spare-parts" element={<SpareParts />} />
               <Route path="/invoices" element={<Invoices />} />

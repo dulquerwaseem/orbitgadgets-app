@@ -195,7 +195,7 @@ export default function CustomerPicker({ value, onChange }: CustomerPickerProps)
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Customer'}
             </button>

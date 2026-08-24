@@ -174,7 +174,7 @@ export default function JobSheetDetail() {
             ← All Job Sheets
           </Link>
           <div className="mt-1 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
               {jobSheet.job_number}
             </h1>
             <span
@@ -190,7 +190,7 @@ export default function JobSheetDetail() {
         {jobSheet.invoices ? (
           <Link
             to={`/invoices/${jobSheet.invoices.id}`}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
           >
             View Invoice {jobSheet.invoices.invoice_number}
           </Link>
@@ -198,7 +198,7 @@ export default function JobSheetDetail() {
           <button
             onClick={() => void handleMarkDeliveredAndBill()}
             disabled={markingDelivered}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
           >
             {markingDelivered
               ? 'Updating…'
@@ -215,7 +215,7 @@ export default function JobSheetDetail() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Status</h2>
             <div className="flex flex-wrap gap-1.5">
               {statusFlow.map((status) => (
@@ -241,7 +241,7 @@ export default function JobSheetDetail() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Device</h2>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -265,7 +265,7 @@ export default function JobSheetDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Intake Details</h2>
             <div className="space-y-3 text-sm">
               <div>
@@ -301,7 +301,7 @@ export default function JobSheetDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Technician Notes</h2>
             <textarea
               rows={4}
@@ -314,20 +314,20 @@ export default function JobSheetDetail() {
               type="button"
               onClick={() => void handleSaveNotes()}
               disabled={savingNotes || technicianNotes === (jobSheet.technician_notes ?? '')}
-              className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50"
             >
               {savingNotes ? 'Saving…' : 'Save Notes'}
             </button>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Parts Used</h2>
             <PartsUsedSection jobSheetId={jobSheet.id} />
           </section>
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Customer</h2>
             {jobSheet.customers ? (
               <div className="text-sm">
@@ -342,7 +342,7 @@ export default function JobSheetDetail() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Timeline</h2>
             <p className="text-sm text-slate-500">Intake: {formatDate(jobSheet.created_at)}</p>
             {jobSheet.delivered_at && (

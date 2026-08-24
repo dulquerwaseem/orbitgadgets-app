@@ -125,13 +125,13 @@ export default function VendorPurchaseDetail() {
           <Link to="/vendor-purchases" className="text-sm text-slate-400 hover:text-slate-600">
             ← All Vendor Purchases
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-900">
             {purchase.purchase_number}
           </h1>
         </div>
         <button
           onClick={() => window.print()}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
         >
           Print / Download
         </button>
@@ -141,10 +141,10 @@ export default function VendorPurchaseDetail() {
         <p className="no-print mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="rounded-2xl bg-white p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)] print:shadow-none">
+      <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
           <div>
-            <p className="text-lg font-semibold text-slate-900">{tenantName || 'Vendor Purchase'}</p>
+            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Vendor Purchase'}</p>
             <p className="mt-1 text-sm text-slate-400">Purchase Record</p>
           </div>
           <div className="text-right">
@@ -270,7 +270,7 @@ export default function VendorPurchaseDetail() {
         </div>
       </div>
 
-      <div className="no-print mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Payments</h2>
         <PaymentsSection
           purchaseId={purchase.id}
@@ -280,7 +280,7 @@ export default function VendorPurchaseDetail() {
         />
       </div>
 
-      <div className="no-print mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Debit Notes</h2>
         <DebitNotesSection
           purchaseId={purchase.id}

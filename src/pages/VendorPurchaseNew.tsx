@@ -247,7 +247,7 @@ function AddPurchaseItemForm({ onAdd }: { onAdd: (item: DraftPurchaseItem) => vo
           type="button"
           onClick={handleAdd}
           disabled={!canAdd}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-40"
         >
           Add Item
         </button>
@@ -355,7 +355,7 @@ export default function VendorPurchaseNew() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">New Vendor Purchase</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">New Vendor Purchase</h1>
         <p className="mt-1 text-sm text-slate-400">
           Stock-in-trade lines automatically create the corresponding inventory rows.
         </p>
@@ -363,7 +363,7 @@ export default function VendorPurchaseNew() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Purchase Details</h2>
             <div className="space-y-4">
               <div>
@@ -445,7 +445,7 @@ export default function VendorPurchaseNew() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Line Items</h2>
 
             {items.length > 0 && (
@@ -492,7 +492,7 @@ export default function VendorPurchaseNew() {
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Summary</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-500">
@@ -517,7 +517,7 @@ export default function VendorPurchaseNew() {
               type="button"
               onClick={() => void handleSubmit()}
               disabled={saving}
-              className="mt-4 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Purchase'}
             </button>

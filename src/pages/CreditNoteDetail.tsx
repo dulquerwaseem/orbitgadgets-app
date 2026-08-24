@@ -92,13 +92,13 @@ export default function CreditNoteDetail() {
           <Link to="/credit-notes" className="text-sm text-slate-400 hover:text-slate-600">
             ← All Credit Notes
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-900">
             {creditNote.credit_note_number}
           </h1>
         </div>
         <button
           onClick={() => window.print()}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
         >
           Print / Download
         </button>
@@ -108,10 +108,10 @@ export default function CreditNoteDetail() {
         <p className="no-print mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="rounded-2xl bg-white p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)] print:shadow-none">
+      <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
           <div>
-            <p className="text-lg font-semibold text-slate-900">{tenantName || 'Credit Note'}</p>
+            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Credit Note'}</p>
             <p className="mt-1 text-sm text-slate-400">Credit Note</p>
           </div>
           <div className="text-right">
@@ -136,7 +136,7 @@ export default function CreditNoteDetail() {
             )}
             <span
               className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                creditNote.is_gst ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-500'
+                creditNote.is_gst ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500'
               }`}
             >
               {creditNote.is_gst ? 'GST' : 'Non-GST'}

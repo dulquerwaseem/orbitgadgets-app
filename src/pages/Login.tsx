@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/orbit-logo.png'
 
 export default function Login() {
   const { session, loading } = useAuth()
@@ -12,7 +13,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && session) {
-    return <Navigate to="/products" replace />
+    return <Navigate to="/overview" replace />
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -25,10 +26,10 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_20px_40px_-24px_rgba(15,23,42,0.15)]">
-        <h1 className="text-xl font-semibold text-slate-900">Orbit Gadgets</h1>
-        <p className="mt-1 text-sm text-slate-400">Sign in to your account</p>
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-8 card-shadow">
+        <img src={logo} alt="Orbit Gadgets" className="h-10 w-auto" />
+        <p className="mt-4 text-sm text-slate-400">Sign in to your account</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
@@ -61,7 +62,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-100 disabled:opacity-50"
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>

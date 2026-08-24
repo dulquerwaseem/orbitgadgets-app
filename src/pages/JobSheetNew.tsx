@@ -59,17 +59,17 @@ export default function JobSheetNew() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">New Job Sheet</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">New Job Sheet</h1>
         <p className="mt-1 text-sm text-slate-400">Log a device intake. No billing here — that happens later.</p>
       </div>
 
       <div className="mx-auto max-w-2xl space-y-6">
-        <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <section className="rounded-2xl bg-white p-5 card-shadow">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Customer</h2>
           <CustomerPicker value={customer} onChange={setCustomer} />
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <section className="rounded-2xl bg-white p-5 card-shadow">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Device</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -115,7 +115,7 @@ export default function JobSheetNew() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+        <section className="rounded-2xl bg-white p-5 card-shadow">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Intake Details</h2>
           <div className="space-y-4">
             <div>
@@ -169,7 +169,7 @@ export default function JobSheetNew() {
           type="button"
           onClick={() => void handleSubmit()}
           disabled={saving}
-          className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Create Job Sheet'}
         </button>

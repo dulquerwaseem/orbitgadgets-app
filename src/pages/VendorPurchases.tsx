@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
@@ -20,6 +20,7 @@ const paymentStatusStyles: Record<string, string> = {
 }
 
 export default function VendorPurchases() {
+  const navigate = useNavigate()
   const { membership } = useAuth()
   const isAdmin = membership?.role === 'admin'
 
@@ -51,13 +52,13 @@ export default function VendorPurchases() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Vendor Purchases</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Vendor Purchases</h1>
           <p className="mt-1 text-sm text-slate-400">{purchases.length} purchases</p>
         </div>
         {isAdmin && (
           <Link
             to="/vendor-purchases/new"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
           >
             New Purchase
           </Link>
@@ -68,7 +69,7 @@ export default function VendorPurchases() {
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading purchases…</p>
         ) : purchases.length === 0 ? (
@@ -88,15 +89,16 @@ export default function VendorPurchases() {
             </thead>
             <tbody>
               {purchases.map((purchase) => (
-                <tr key={purchase.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                  <td className="px-0 py-0">
-                    <Link
-                      to={`/vendor-purchases/${purchase.id}`}
-                      className="block px-6 py-3.5 font-medium text-slate-900"
-                    >
-                      {purchase.purchase_number}
-                    </Link>
-                  </td>
+                <tr
+                  key={purchase.id}
+                  onClick={() => navigate(`/vendor-purchases/${purchase.id}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/vendor-purchases/${purchase.id}`)
+                  }}
+                  className="cursor-pointer border-b border-slate-50 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 active:bg-slate-100"
+                >
+                  <td className="px-6 py-3.5 font-medium text-slate-900">{purchase.purchase_number}</td>
                   <td className="px-6 py-3.5 text-slate-500">{purchase.vendors?.name ?? '—'}</td>
                   <td className="px-6 py-3.5 text-slate-500">{formatDate(purchase.purchase_date)}</td>
                   <td className="px-6 py-3.5">

@@ -161,7 +161,7 @@ export default function SpareParts() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Spare Parts</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Spare Parts</h1>
           <p className="mt-1 text-sm text-slate-400">
             {filtered.length} of {parts.length} items
             {lowStockCount > 0 && (
@@ -179,7 +179,7 @@ export default function SpareParts() {
           />
           <button
             onClick={openAddModal}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
           >
             Add Spare Part
           </button>
@@ -190,7 +190,7 @@ export default function SpareParts() {
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading spare parts…</p>
         ) : filtered.length === 0 ? (
@@ -381,7 +381,7 @@ export default function SpareParts() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Spare Part'}
             </button>
