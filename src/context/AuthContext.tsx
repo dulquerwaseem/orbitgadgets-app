@@ -5,9 +5,12 @@ import { supabase } from '../lib/supabase'
 
 export type TenantRole = 'admin' | 'staff'
 
-interface TenantMembership {
+export interface TenantMembership {
+  id: string
   tenantId: string
   role: TenantRole
+  name: string | null
+  permissions: string[]
 }
 
 interface AuthState {
@@ -16,6 +19,7 @@ interface AuthState {
   membership: TenantMembership | null
   loading: boolean
   signOut: () => Promise<void>
+  refreshMembership: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -25,23 +29,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<TenantMembership | null>(null)
   const [loading, setLoading] = useState(true)
 
+  async function loadMembership(userId: string) {
+    const { data, error } = await supabase
+      .from('tenant_members')
+      .select('id, tenant_id, role, name, permissions')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (error || !data) {
+      setMembership(null)
+    } else {
+      setMembership({
+        id: data.id,
+        tenantId: data.tenant_id,
+        role: data.role as TenantRole,
+        name: data.name,
+        permissions: data.permissions ?? [],
+      })
+    }
+  }
+
   useEffect(() => {
     let active = true
-
-    async function loadMembership(userId: string) {
-      const { data, error } = await supabase
-        .from('tenant_members')
-        .select('tenant_id, role')
-        .eq('user_id', userId)
-        .maybeSingle()
-
-      if (!active) return
-      if (error || !data) {
-        setMembership(null)
-      } else {
-        setMembership({ tenantId: data.tenant_id, role: data.role as TenantRole })
-      }
-    }
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return
@@ -71,9 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  async function refreshMembership() {
+    if (session?.user) await loadMembership(session.user.id)
+  }
+
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, membership, loading, signOut }}
+      value={{ session, user: session?.user ?? null, membership, loading, signOut, refreshMembership }}
     >
       {children}
     </AuthContext.Provider>

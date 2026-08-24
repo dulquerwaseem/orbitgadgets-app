@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatLabel } from '../lib/format'
+import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
 
 interface JobSheetRow {
   id: string
@@ -10,6 +12,7 @@ interface JobSheetRow {
   device_name: string | null
   device_brand: string | null
   estimated_ready_date: string | null
+  created_at: string
   customers: { name: string } | null
 }
 
@@ -32,19 +35,25 @@ const statusStyles: Record<string, string> = {
 
 export default function JobSheets() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const customerId = searchParams.get('customer')
   const [jobSheets, setJobSheets] = useState<JobSheetRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
 
   async function loadJobSheets() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
+    let query = supabase
       .from('job_sheets')
-      .select('id, job_number, status, device_name, device_brand, estimated_ready_date, customers(name)')
-      .order('created_at', { ascending: false })
+      .select(
+        'id, job_number, status, device_name, device_brand, estimated_ready_date, created_at, customers(name)',
+      )
+    if (customerId) query = query.eq('customer_id', customerId)
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       setError(error.message)
@@ -56,12 +65,13 @@ export default function JobSheets() {
 
   useEffect(() => {
     void loadJobSheets()
-  }, [])
+  }, [customerId])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return jobSheets.filter((js) => {
       if (statusFilter !== 'all' && js.status !== statusFilter) return false
+      if (!isWithinDateRange(js.created_at, dateRange)) return false
       if (!q) return true
       return (
         js.job_number.toLowerCase().includes(q) ||
@@ -70,7 +80,7 @@ export default function JobSheets() {
         (js.device_brand ?? '').toLowerCase().includes(q)
       )
     })
-  }, [jobSheets, statusFilter, search])
+  }, [jobSheets, statusFilter, search, dateRange])
 
   return (
     <div>
@@ -89,6 +99,7 @@ export default function JobSheets() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-72 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
           />
+          <DateRangeFilter onChange={setDateRange} />
           <Link
             to="/job-sheets/new"
             className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
@@ -114,6 +125,15 @@ export default function JobSheets() {
           </button>
         ))}
       </div>
+
+      {customerId && (
+        <p className="mb-4 text-sm text-slate-500">
+          Filtered to one customer.{' '}
+          <Link to="/job-sheets" className="font-medium text-slate-900 underline">
+            Clear filter
+          </Link>
+        </p>
+      )}
 
       {error && (
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>

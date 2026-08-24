@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
 
 interface VendorPurchaseRow {
   id: string
@@ -27,6 +29,7 @@ export default function VendorPurchases() {
   const [purchases, setPurchases] = useState<VendorPurchaseRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
 
   async function loadPurchases() {
     setLoading(true)
@@ -48,21 +51,31 @@ export default function VendorPurchases() {
     void loadPurchases()
   }, [])
 
+  const filtered = useMemo(
+    () => purchases.filter((purchase) => isWithinDateRange(purchase.purchase_date, dateRange)),
+    [purchases, dateRange],
+  )
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Vendor Purchases</h1>
-          <p className="mt-1 text-sm text-slate-400">{purchases.length} purchases</p>
+          <p className="mt-1 text-sm text-slate-400">
+            {filtered.length} of {purchases.length} purchases
+          </p>
         </div>
-        {isAdmin && (
-          <Link
-            to="/vendor-purchases/new"
-            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
-          >
-            New Purchase
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <DateRangeFilter onChange={setDateRange} />
+          {isAdmin && (
+            <Link
+              to="/vendor-purchases/new"
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
+            >
+              New Purchase
+            </Link>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -72,9 +85,11 @@ export default function VendorPurchases() {
       <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading purchases…</p>
-        ) : purchases.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            No purchases yet.{isAdmin ? ' Create your first one.' : ''}
+            {purchases.length === 0
+              ? `No purchases yet.${isAdmin ? ' Create your first one.' : ''}`
+              : 'No purchases match this date range.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
@@ -88,7 +103,7 @@ export default function VendorPurchases() {
               </tr>
             </thead>
             <tbody>
-              {purchases.map((purchase) => (
+              {filtered.map((purchase) => (
                 <tr
                   key={purchase.id}
                   onClick={() => navigate(`/vendor-purchases/${purchase.id}`)}

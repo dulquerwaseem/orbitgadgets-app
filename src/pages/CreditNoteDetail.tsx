@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import PrintHeader from '../components/print/PrintHeader'
+import PrintFooter from '../components/print/PrintFooter'
 
 interface ReturnedItem {
   invoice_item_id: string
@@ -32,9 +33,7 @@ interface CreditNoteData {
 
 export default function CreditNoteDetail() {
   const { id } = useParams<{ id: string }>()
-  const { membership } = useAuth()
 
-  const [tenantName, setTenantName] = useState('')
   const [creditNote, setCreditNote] = useState<CreditNoteData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -62,18 +61,6 @@ export default function CreditNoteDetail() {
   useEffect(() => {
     if (id) void loadCreditNote(id)
   }, [id])
-
-  useEffect(() => {
-    if (!membership) return
-    supabase
-      .from('tenants')
-      .select('name')
-      .eq('id', membership.tenantId)
-      .single()
-      .then(({ data }) => {
-        if (data) setTenantName(data.name)
-      })
-  }, [membership])
 
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading credit note…</p>
@@ -109,40 +96,7 @@ export default function CreditNoteDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
-          <div>
-            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Credit Note'}</p>
-            <p className="mt-1 text-sm text-slate-400">Credit Note</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">
-              Credit Note No:{' '}
-              <span className="font-medium text-slate-900">{creditNote.credit_note_number}</span>
-            </p>
-            <p className="mt-1 text-sm text-slate-500">Date: {formatDate(creditNote.return_date)}</p>
-            {creditNote.invoices && (
-              <p className="mt-1 text-sm text-slate-500">
-                Against Invoice:{' '}
-                <Link
-                  to={`/invoices/${creditNote.invoices.id}`}
-                  className="no-print font-medium text-slate-900 underline"
-                >
-                  {creditNote.invoices.invoice_number}
-                </Link>
-                <span className="hidden print:inline font-medium text-slate-900">
-                  {creditNote.invoices.invoice_number}
-                </span>
-              </p>
-            )}
-            <span
-              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                creditNote.is_gst ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {creditNote.is_gst ? 'GST' : 'Non-GST'}
-            </span>
-          </div>
-        </div>
+        <PrintHeader label="Credit Note" />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>
@@ -155,13 +109,32 @@ export default function CreditNoteDetail() {
               <p className="text-sm text-slate-500">{creditNote.customers.address}</p>
             )}
           </div>
-          <div className="text-right">
+          <div className="text-right text-sm text-slate-500">
+            <p>
+              Credit Note No:{' '}
+              <span className="font-semibold text-slate-900">{creditNote.credit_note_number}</span>
+            </p>
+            <p className="mt-1">Date: {formatDate(creditNote.return_date)}</p>
+            {creditNote.invoices && (
+              <p className="mt-1">
+                Against Invoice:{' '}
+                <Link
+                  to={`/invoices/${creditNote.invoices.id}`}
+                  className="no-print font-medium text-slate-900 underline"
+                >
+                  {creditNote.invoices.invoice_number}
+                </Link>
+                <span className="hidden font-medium text-slate-900 print:inline">
+                  {creditNote.invoices.invoice_number}
+                </span>
+              </p>
+            )}
             {creditNote.reason && (
               <>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                <p className="mt-2 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
                   Reason
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-slate-500">{creditNote.reason}</p>
+                <p className="whitespace-pre-wrap">{creditNote.reason}</p>
               </>
             )}
             {creditNote.notes && (
@@ -169,37 +142,55 @@ export default function CreditNoteDetail() {
                 <p className="mt-2 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
                   Notes
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-slate-500">{creditNote.notes}</p>
+                <p className="whitespace-pre-wrap">{creditNote.notes}</p>
               </>
             )}
+            <span
+              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                creditNote.is_gst ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {creditNote.is_gst ? 'GST' : 'Non-GST'}
+            </span>
           </div>
         </div>
 
-        <table className="mb-8 w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="py-2 pr-4">Item</th>
-              <th className="py-2 pr-4">Qty Returned</th>
-              <th className="py-2 pr-4">Unit Price</th>
-              <th className="py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {creditNote.items_returned.map((item) => (
-              <tr key={item.invoice_item_id} className="border-b border-slate-50">
-                <td className="py-2.5 pr-4">
-                  <p className="font-medium text-slate-900">{item.item_name}</p>
-                  <p className="text-xs text-slate-400">{formatLabel(item.item_type)}</p>
-                </td>
-                <td className="py-2.5 pr-4 text-slate-500">{item.quantity_returned}</td>
-                <td className="py-2.5 pr-4 text-slate-500">{formatCurrencyExact(item.unit_price)}</td>
-                <td className="py-2.5 text-right text-slate-700">
-                  {formatCurrencyExact(item.line_total)}
-                </td>
+        <div className="mb-8 overflow-hidden rounded-lg border border-slate-300">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Qty Returned</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
+                <th className="px-4 py-2.5 text-right">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {creditNote.items_returned.map((item, index) => (
+                <tr
+                  key={item.invoice_item_id}
+                  className={`border-b border-slate-200 last:border-b-0 ${
+                    index % 2 === 1 ? 'bg-slate-50' : 'bg-white'
+                  }`}
+                >
+                  <td className="border-r border-slate-200 px-4 py-2.5">
+                    <p className="font-medium text-slate-900">{item.item_name}</p>
+                    <p className="text-xs text-slate-400">{formatLabel(item.item_type)}</p>
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {item.quantity_returned}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {formatCurrencyExact(item.unit_price)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-700">
+                    {formatCurrencyExact(item.line_total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div className="flex justify-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
@@ -225,6 +216,8 @@ export default function CreditNoteDetail() {
             </div>
           </div>
         </div>
+
+        <PrintFooter note="This is a system-generated credit note." />
       </div>
     </div>
   )

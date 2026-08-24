@@ -76,7 +76,11 @@ export default function Overview() {
       { data: activeJobSheetsData },
     ] = await Promise.all([
       supabase.from('job_sheets').select('id', { count: 'exact', head: true }).neq('status', 'delivered'),
-      supabase.from('invoices').select('final_price').eq('payment_status', 'unpaid').eq('superseded', false),
+      supabase
+        .from('invoices')
+        .select('final_price, amount_paid')
+        .in('payment_status', ['unpaid', 'partial'])
+        .eq('superseded', false),
       supabase.from('spare_parts').select('quantity, reorder_level'),
       supabase.from('quotations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase
@@ -100,7 +104,10 @@ export default function Overview() {
     setStats({
       openJobSheets: openJobSheets ?? 0,
       unpaidInvoiceCount: unpaidInvoices?.length ?? 0,
-      unpaidInvoiceTotal: (unpaidInvoices ?? []).reduce((sum, i) => sum + i.final_price, 0),
+      unpaidInvoiceTotal: (unpaidInvoices ?? []).reduce(
+        (sum, i) => sum + (i.final_price - i.amount_paid),
+        0,
+      ),
       lowStockCount,
       pendingQuotations: pendingQuotations ?? 0,
     })

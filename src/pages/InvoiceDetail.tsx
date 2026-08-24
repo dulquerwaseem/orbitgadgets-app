@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import PrintHeader from '../components/print/PrintHeader'
+import PrintFooter from '../components/print/PrintFooter'
+import InvoicePaymentsSection from '../components/invoice/InvoicePaymentsSection'
 
 interface InvoiceDetailData {
   id: string
@@ -55,10 +57,8 @@ const paymentStatusStyles: Record<string, string> = {
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
-  const { membership } = useAuth()
   const navigate = useNavigate()
 
-  const [tenantName, setTenantName] = useState<string>('')
   const [invoice, setInvoice] = useState<InvoiceDetailData | null>(null)
   const [items, setItems] = useState<InvoiceItemRow[]>([])
   const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
@@ -129,18 +129,6 @@ export default function InvoiceDetail() {
   useEffect(() => {
     if (id) void loadInvoice(id)
   }, [id])
-
-  useEffect(() => {
-    if (!membership) return
-    supabase
-      .from('tenants')
-      .select('name')
-      .eq('id', membership.tenantId)
-      .single()
-      .then(({ data }) => {
-        if (data) setTenantName(data.name)
-      })
-  }, [membership])
 
   async function handleConvert() {
     if (!id) return
@@ -240,27 +228,7 @@ export default function InvoiceDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
-          <div>
-            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Invoice'}</p>
-            <p className="mt-1 text-sm text-slate-400">Tax Invoice</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">
-              Invoice No: <span className="font-medium text-slate-900">{invoice.invoice_number}</span>
-            </p>
-            <p className="mt-1 text-sm text-slate-500">Date: {formatDate(invoice.created_at)}</p>
-            <span
-              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                invoice.invoice_series === 'gst'
-                  ? 'bg-violet-50 text-violet-600'
-                  : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {invoice.invoice_series === 'gst' ? 'GST' : 'Non-GST'}
-            </span>
-          </div>
-        </div>
+        <PrintHeader label="Invoice" />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>
@@ -276,14 +244,15 @@ export default function InvoiceDetail() {
               <p className="text-sm text-slate-500">GSTIN: {invoice.customer_gst}</p>
             )}
           </div>
-          <div className="text-right">
-            {invoice.job_sheets && (
-              <p className="text-sm text-slate-500">Job Sheet: {invoice.job_sheets.job_number}</p>
-            )}
-            {invoice.eway_bill && (
-              <p className="text-sm text-slate-500">E-way Bill: {invoice.eway_bill}</p>
-            )}
-            <p className="mt-1 text-sm text-slate-500">
+          <div className="text-right text-sm text-slate-500">
+            <p>
+              Invoice No:{' '}
+              <span className="font-semibold text-slate-900">{invoice.invoice_number}</span>
+            </p>
+            <p className="mt-1">Date: {formatDate(invoice.created_at)}</p>
+            {invoice.job_sheets && <p className="mt-1">Job Sheet: {invoice.job_sheets.job_number}</p>}
+            {invoice.eway_bill && <p className="mt-1">E-way Bill: {invoice.eway_bill}</p>}
+            <p className="mt-1">
               Payment:{' '}
               <span
                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -293,47 +262,67 @@ export default function InvoiceDetail() {
                 {formatLabel(invoice.payment_status)}
               </span>
             </p>
+            <span
+              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                invoice.invoice_series === 'gst'
+                  ? 'bg-violet-50 text-violet-600'
+                  : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {invoice.invoice_series === 'gst' ? 'GST' : 'Non-GST'}
+            </span>
           </div>
         </div>
 
-        <table className="mb-8 w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="py-2 pr-4">Item</th>
-              <th className="py-2 pr-4">Qty</th>
-              <th className="py-2 pr-4">Unit Price</th>
-              <th className="py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-b border-slate-50">
-                <td className="py-2.5 pr-4">
-                  <p className="font-medium text-slate-900">{item.item_name}</p>
-                  <p className="text-xs text-slate-400">
-                    {formatLabel(item.item_type)}
-                    {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
-                    {item.ram ? ` · ${item.ram}` : ''}
-                    {item.storage ? ` · ${item.storage}` : ''}
-                  </p>
-                  {item.hsn_code && (
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
-                    </p>
-                  )}
-                  {item.description && (
-                    <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
-                  )}
-                </td>
-                <td className="py-2.5 pr-4 text-slate-500">{item.quantity}</td>
-                <td className="py-2.5 pr-4 text-slate-500">{formatCurrencyExact(item.unit_price)}</td>
-                <td className="py-2.5 text-right text-slate-700">
-                  {formatCurrencyExact(item.total_price)}
-                </td>
+        <div className="mb-8 overflow-hidden rounded-lg border border-slate-300">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
+                <th className="px-4 py-2.5 text-right">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr
+                  key={item.id}
+                  className={`border-b border-slate-200 last:border-b-0 ${
+                    index % 2 === 1 ? 'bg-slate-50' : 'bg-white'
+                  }`}
+                >
+                  <td className="border-r border-slate-200 px-4 py-2.5">
+                    <p className="font-medium text-slate-900">{item.item_name}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatLabel(item.item_type)}
+                      {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
+                      {item.ram ? ` · ${item.ram}` : ''}
+                      {item.storage ? ` · ${item.storage}` : ''}
+                    </p>
+                    {item.hsn_code && (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
+                      </p>
+                    )}
+                    {item.description && (
+                      <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+                    )}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {item.quantity}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {formatCurrencyExact(item.unit_price)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-700">
+                    {formatCurrencyExact(item.total_price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div className="flex justify-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
@@ -387,7 +376,21 @@ export default function InvoiceDetail() {
             </div>
           </div>
         </div>
+
+        <PrintFooter note="Thank you for your business." />
       </div>
+
+      {!invoice.superseded && (
+        <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Payments</h2>
+          <InvoicePaymentsSection
+            invoiceId={invoice.id}
+            finalPrice={invoice.final_price}
+            amountPaid={invoice.amount_paid}
+            onPaymentRecorded={() => id && void loadInvoice(id)}
+          />
+        </div>
+      )}
 
       {creditNotes.length > 0 && (
         <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">

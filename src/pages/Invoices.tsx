@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
+import type { GstInvoiceExportRow, GstInvoiceItemExportRow } from '../lib/exportGstSales'
 
 interface InvoiceRow {
   id: string
@@ -21,18 +24,24 @@ const paymentStatusStyles: Record<string, string> = {
 
 export default function Invoices() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const customerId = searchParams.get('customer')
   const [invoices, setInvoices] = useState<InvoiceRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   async function loadInvoices() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
+    let query = supabase
       .from('invoices')
       .select('id, invoice_number, invoice_series, final_price, payment_status, created_at, customers(name)')
       .eq('superseded', false)
-      .order('created_at', { ascending: false })
+    if (customerId) query = query.eq('customer_id', customerId)
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       setError(error.message)
@@ -44,33 +53,107 @@ export default function Invoices() {
 
   useEffect(() => {
     void loadInvoices()
-  }, [])
+  }, [customerId])
+
+  const filtered = useMemo(
+    () => invoices.filter((invoice) => isWithinDateRange(invoice.created_at, dateRange)),
+    [invoices, dateRange],
+  )
+
+  const gstInvoiceIds = useMemo(
+    () => filtered.filter((invoice) => invoice.invoice_series === 'gst').map((invoice) => invoice.id),
+    [filtered],
+  )
+
+  async function handleExport() {
+    if (gstInvoiceIds.length === 0) {
+      setExportError('No GST invoices in the selected date range.')
+      return
+    }
+
+    setExporting(true)
+    setExportError(null)
+
+    const [{ data: invoiceRows, error: invoiceError }, { data: itemRows, error: itemError }] = await Promise.all([
+      supabase
+        .from('invoices')
+        .select(
+          'id, invoice_number, created_at, customer_gst, taxable_value, cgst_amount, sgst_amount, final_price, payment_status, customers(name)',
+        )
+        .in('id', gstInvoiceIds)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('invoice_items')
+        .select('invoice_id, item_name, hsn_code, item_type, quantity, unit_price, total_price')
+        .in('invoice_id', gstInvoiceIds),
+    ])
+
+    if (invoiceError || itemError || !invoiceRows) {
+      setExporting(false)
+      setExportError(invoiceError?.message ?? itemError?.message ?? 'Failed to build the export.')
+      return
+    }
+
+    const { downloadGstSalesExcel } = await import('../lib/exportGstSales')
+    await downloadGstSalesExcel(
+      invoiceRows as unknown as GstInvoiceExportRow[],
+      (itemRows as unknown as GstInvoiceItemExportRow[]) ?? [],
+      dateRange,
+    )
+
+    setExporting(false)
+  }
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Invoices</h1>
-          <p className="mt-1 text-sm text-slate-400">{invoices.length} invoices</p>
+          <p className="mt-1 text-sm text-slate-400">
+            {filtered.length} of {invoices.length} invoices
+          </p>
         </div>
-        <Link
-          to="/invoices/new"
-          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
-        >
-          New Invoice
-        </Link>
+        <div className="flex items-center gap-3">
+          <DateRangeFilter onChange={setDateRange} />
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={exporting}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting…' : 'Export for CA'}
+          </button>
+          <Link
+            to="/invoices/new"
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
+          >
+            New Invoice
+          </Link>
+        </div>
       </div>
+
+      {customerId && (
+        <p className="mb-4 text-sm text-slate-500">
+          Filtered to one customer.{' '}
+          <Link to="/invoices" className="font-medium text-slate-900 underline">
+            Clear filter
+          </Link>
+        </p>
+      )}
 
       {error && (
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+      )}
+      {exportError && (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{exportError}</p>
       )}
 
       <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoices…</p>
-        ) : invoices.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            No invoices yet. Create your first one.
+            {invoices.length === 0 ? 'No invoices yet. Create your first one.' : 'No invoices match this date range.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
@@ -85,7 +168,7 @@ export default function Invoices() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice) => (
+              {filtered.map((invoice) => (
                 <tr
                   key={invoice.id}
                   onClick={() => navigate(`/invoices/${invoice.id}`)}

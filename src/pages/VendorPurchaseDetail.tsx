@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PaymentsSection from '../components/vendorpurchase/PaymentsSection'
 import DebitNotesSection from '../components/vendorpurchase/DebitNotesSection'
+import PrintHeader from '../components/print/PrintHeader'
+import PrintFooter from '../components/print/PrintFooter'
 
 interface VendorPurchaseData {
   id: string
@@ -50,7 +52,6 @@ export default function VendorPurchaseDetail() {
   const { membership } = useAuth()
   const isAdmin = membership?.role === 'admin'
 
-  const [tenantName, setTenantName] = useState('')
   const [purchase, setPurchase] = useState<VendorPurchaseData | null>(null)
   const [items, setItems] = useState<VendorPurchaseItemRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,18 +97,6 @@ export default function VendorPurchaseDetail() {
     if (id) void loadPurchase(id)
   }, [id])
 
-  useEffect(() => {
-    if (!membership) return
-    supabase
-      .from('tenants')
-      .select('name')
-      .eq('id', membership.tenantId)
-      .single()
-      .then(({ data }) => {
-        if (data) setTenantName(data.name)
-      })
-  }, [membership])
-
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading purchase…</p>
   }
@@ -142,27 +131,7 @@ export default function VendorPurchaseDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
-          <div>
-            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Vendor Purchase'}</p>
-            <p className="mt-1 text-sm text-slate-400">Purchase Record</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">
-              Purchase No:{' '}
-              <span className="font-medium text-slate-900">{purchase.purchase_number}</span>
-            </p>
-            <p className="mt-1 text-sm text-slate-500">Date: {formatDate(purchase.purchase_date)}</p>
-            {purchase.supplier_invoice_no && (
-              <p className="mt-1 text-sm text-slate-500">
-                Supplier Invoice: {purchase.supplier_invoice_no}
-              </p>
-            )}
-            <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-              {formatLabel(purchase.purchase_kind)}
-            </span>
-          </div>
-        </div>
+        <PrintHeader label="Purchase Order" />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>
@@ -177,8 +146,16 @@ export default function VendorPurchaseDetail() {
               <p className="text-sm text-slate-500">GSTIN: {purchase.vendors.gstin}</p>
             )}
           </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">
+          <div className="text-right text-sm text-slate-500">
+            <p>
+              Purchase No:{' '}
+              <span className="font-semibold text-slate-900">{purchase.purchase_number}</span>
+            </p>
+            <p className="mt-1">Date: {formatDate(purchase.purchase_date)}</p>
+            {purchase.supplier_invoice_no && (
+              <p className="mt-1">Supplier Invoice: {purchase.supplier_invoice_no}</p>
+            )}
+            <p className="mt-1">
               Payment:{' '}
               <span
                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -193,64 +170,80 @@ export default function VendorPurchaseDetail() {
                 <p className="mt-2 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
                   Notes
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-slate-500">{purchase.notes}</p>
+                <p className="whitespace-pre-wrap">{purchase.notes}</p>
               </>
             )}
+            <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+              {formatLabel(purchase.purchase_kind)}
+            </span>
           </div>
         </div>
 
-        <table className="mb-8 w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="py-2 pr-4">Item</th>
-              <th className="py-2 pr-4">Qty</th>
-              <th className="py-2 pr-4">Unit Price</th>
-              <th className="py-2 pr-4">GST</th>
-              <th className="py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => {
-              const restocked =
-                (item.product_ids && item.product_ids.length > 0) || item.spare_part_id
-              return (
-                <tr key={item.id} className="border-b border-slate-50">
-                  <td className="py-2.5 pr-4">
-                    <p className="font-medium text-slate-900">{item.item_name}</p>
-                    <p className="text-xs text-slate-400">
-                      {formatLabel(item.item_type)}
-                      {item.brand ? ` · ${item.brand}` : ''}
-                      {item.category ? ` · ${item.category}` : ''}
-                    </p>
-                    {item.hsn_code && (
-                      <p className="mt-0.5 text-xs text-slate-400">HSN: {item.hsn_code}</p>
-                    )}
-                    {item.serials && item.serials.length > 0 && (
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        Serials: {item.serials.join(', ')}
+        <div className="mb-8 overflow-hidden rounded-lg border border-slate-300">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">GST</th>
+                <th className="px-4 py-2.5 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => {
+                const restocked =
+                  (item.product_ids && item.product_ids.length > 0) || item.spare_part_id
+                return (
+                  <tr
+                    key={item.id}
+                    className={`border-b border-slate-200 last:border-b-0 ${
+                      index % 2 === 1 ? 'bg-slate-50' : 'bg-white'
+                    }`}
+                  >
+                    <td className="border-r border-slate-200 px-4 py-2.5">
+                      <p className="font-medium text-slate-900">{item.item_name}</p>
+                      <p className="text-xs text-slate-400">
+                        {formatLabel(item.item_type)}
+                        {item.brand ? ` · ${item.brand}` : ''}
+                        {item.category ? ` · ${item.category}` : ''}
                       </p>
-                    )}
-                    {restocked && (
-                      <p className="no-print mt-0.5 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                        {item.item_type === 'product'
-                          ? `Added to inventory (${item.product_ids?.length ?? 0} unit${
-                              (item.product_ids?.length ?? 0) === 1 ? '' : 's'
-                            })`
-                          : 'Restocked'}
-                      </p>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-4 text-slate-500">{item.quantity}</td>
-                  <td className="py-2.5 pr-4 text-slate-500">{formatCurrencyExact(item.unit_price)}</td>
-                  <td className="py-2.5 pr-4 text-slate-500">
-                    {item.gst_rate}% ({formatCurrencyExact(item.gst_amount)})
-                  </td>
-                  <td className="py-2.5 text-right text-slate-700">{formatCurrencyExact(item.total)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                      {item.hsn_code && (
+                        <p className="mt-0.5 text-xs text-slate-400">HSN: {item.hsn_code}</p>
+                      )}
+                      {item.serials && item.serials.length > 0 && (
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          Serials: {item.serials.join(', ')}
+                        </p>
+                      )}
+                      {restocked && (
+                        <p className="no-print mt-0.5 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          {item.item_type === 'product'
+                            ? `Added to inventory (${item.product_ids?.length ?? 0} unit${
+                                (item.product_ids?.length ?? 0) === 1 ? '' : 's'
+                              })`
+                            : 'Restocked'}
+                        </p>
+                      )}
+                    </td>
+                    <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                      {item.quantity}
+                    </td>
+                    <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                      {formatCurrencyExact(item.unit_price)}
+                    </td>
+                    <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                      {item.gst_rate}% ({formatCurrencyExact(item.gst_amount)})
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-slate-700">
+                      {formatCurrencyExact(item.total)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
 
         <div className="flex justify-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
@@ -268,6 +261,8 @@ export default function VendorPurchaseDetail() {
             </div>
           </div>
         </div>
+
+        <PrintFooter note="Internal purchase record — not a tax invoice." />
       </div>
 
       <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">

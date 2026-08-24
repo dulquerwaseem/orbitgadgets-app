@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate } from '../lib/format'
+import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
 
 interface CreditNoteRow {
   id: string
   credit_note_number: string
   return_date: string
   total_refunded: number
+  created_at: string
   invoices: { invoice_number: string } | null
   customers: { name: string } | null
 }
@@ -17,13 +20,16 @@ export default function CreditNotes() {
   const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
 
   async function loadCreditNotes() {
     setLoading(true)
     setError(null)
     const { data, error } = await supabase
       .from('credit_notes')
-      .select('id, credit_note_number, return_date, total_refunded, invoices(invoice_number), customers(name)')
+      .select(
+        'id, credit_note_number, return_date, total_refunded, created_at, invoices(invoice_number), customers(name)',
+      )
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -38,11 +44,21 @@ export default function CreditNotes() {
     void loadCreditNotes()
   }, [])
 
+  const filtered = useMemo(
+    () => creditNotes.filter((cn) => isWithinDateRange(cn.created_at, dateRange)),
+    [creditNotes, dateRange],
+  )
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Credit Notes</h1>
-        <p className="mt-1 text-sm text-slate-400">{creditNotes.length} credit notes</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Credit Notes</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            {filtered.length} of {creditNotes.length} credit notes
+          </p>
+        </div>
+        <DateRangeFilter onChange={setDateRange} />
       </div>
 
       {error && (
@@ -52,9 +68,11 @@ export default function CreditNotes() {
       <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading credit notes…</p>
-        ) : creditNotes.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            No credit notes yet. Create one from an invoice's detail view.
+            {creditNotes.length === 0
+              ? "No credit notes yet. Create one from an invoice's detail view."
+              : 'No credit notes match this date range.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
@@ -68,7 +86,7 @@ export default function CreditNotes() {
               </tr>
             </thead>
             <tbody>
-              {creditNotes.map((cn) => (
+              {filtered.map((cn) => (
                 <tr
                   key={cn.id}
                   onClick={() => navigate(`/credit-notes/${cn.id}`)}

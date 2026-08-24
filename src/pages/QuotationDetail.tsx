@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
-import { useAuth } from '../context/AuthContext'
+import PrintHeader from '../components/print/PrintHeader'
+import PrintFooter from '../components/print/PrintFooter'
 
 interface QuotationDetailData {
   id: string
@@ -45,10 +46,8 @@ const statusStyles: Record<string, string> = {
 
 export default function QuotationDetail() {
   const { id } = useParams<{ id: string }>()
-  const { membership } = useAuth()
   const navigate = useNavigate()
 
-  const [tenantName, setTenantName] = useState('')
   const [quotation, setQuotation] = useState<QuotationDetailData | null>(null)
   const [items, setItems] = useState<QuotationItemRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,18 +93,6 @@ export default function QuotationDetail() {
   useEffect(() => {
     if (id) void loadQuotation(id)
   }, [id])
-
-  useEffect(() => {
-    if (!membership) return
-    supabase
-      .from('tenants')
-      .select('name')
-      .eq('id', membership.tenantId)
-      .single()
-      .then(({ data }) => {
-        if (data) setTenantName(data.name)
-      })
-  }, [membership])
 
   async function handleConvert() {
     if (!id) return
@@ -195,21 +182,33 @@ export default function QuotationDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
+        <PrintHeader label="Quotation" />
+
+        <div className="mb-8 grid grid-cols-2 gap-6">
           <div>
-            <p className="font-heading text-lg font-semibold text-slate-900">{tenantName || 'Quotation'}</p>
-            <p className="mt-1 text-sm text-slate-400">Estimate</p>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">For</p>
+            <p className="text-sm font-medium text-slate-900">{quotation.customers?.name ?? '—'}</p>
+            <p className="text-sm text-slate-500">{quotation.customers?.phone}</p>
+            {quotation.customers?.address && (
+              <p className="text-sm text-slate-500">{quotation.customers.address}</p>
+            )}
           </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">
+          <div className="text-right text-sm text-slate-500">
+            <p>
               Quotation No:{' '}
-              <span className="font-medium text-slate-900">{quotation.quotation_number}</span>
+              <span className="font-semibold text-slate-900">{quotation.quotation_number}</span>
             </p>
-            <p className="mt-1 text-sm text-slate-500">Date: {formatDate(quotation.created_at)}</p>
+            <p className="mt-1">Date: {formatDate(quotation.created_at)}</p>
             {quotation.valid_until && (
-              <p className="mt-1 text-sm text-slate-500">
-                Valid Until: {formatDate(quotation.valid_until)}
-              </p>
+              <p className="mt-1">Valid Until: {formatDate(quotation.valid_until)}</p>
+            )}
+            {quotation.notes && (
+              <>
+                <p className="mt-2 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Notes
+                </p>
+                <p className="whitespace-pre-wrap">{quotation.notes}</p>
+              </>
             )}
             <span
               className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -223,63 +222,55 @@ export default function QuotationDetail() {
           </div>
         </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-6">
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">For</p>
-            <p className="text-sm font-medium text-slate-900">{quotation.customers?.name ?? '—'}</p>
-            <p className="text-sm text-slate-500">{quotation.customers?.phone}</p>
-            {quotation.customers?.address && (
-              <p className="text-sm text-slate-500">{quotation.customers.address}</p>
-            )}
-          </div>
-          {quotation.notes && (
-            <div className="text-right">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                Notes
-              </p>
-              <p className="whitespace-pre-wrap text-sm text-slate-500">{quotation.notes}</p>
-            </div>
-          )}
-        </div>
-
-        <table className="mb-8 w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="py-2 pr-4">Item</th>
-              <th className="py-2 pr-4">Qty</th>
-              <th className="py-2 pr-4">Unit Price</th>
-              <th className="py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-b border-slate-50">
-                <td className="py-2.5 pr-4">
-                  <p className="font-medium text-slate-900">{item.item_name}</p>
-                  <p className="text-xs text-slate-400">
-                    {formatLabel(item.item_type)}
-                    {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
-                    {item.ram ? ` · ${item.ram}` : ''}
-                    {item.storage ? ` · ${item.storage}` : ''}
-                  </p>
-                  {item.hsn_code && (
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
-                    </p>
-                  )}
-                  {item.description && (
-                    <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
-                  )}
-                </td>
-                <td className="py-2.5 pr-4 text-slate-500">{item.quantity}</td>
-                <td className="py-2.5 pr-4 text-slate-500">{formatCurrencyExact(item.unit_price)}</td>
-                <td className="py-2.5 text-right text-slate-700">
-                  {formatCurrencyExact(item.total_price)}
-                </td>
+        <div className="mb-8 overflow-hidden rounded-lg border border-slate-300">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
+                <th className="px-4 py-2.5 text-right">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr
+                  key={item.id}
+                  className={`border-b border-slate-200 last:border-b-0 ${
+                    index % 2 === 1 ? 'bg-slate-50' : 'bg-white'
+                  }`}
+                >
+                  <td className="border-r border-slate-200 px-4 py-2.5">
+                    <p className="font-medium text-slate-900">{item.item_name}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatLabel(item.item_type)}
+                      {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
+                      {item.ram ? ` · ${item.ram}` : ''}
+                      {item.storage ? ` · ${item.storage}` : ''}
+                    </p>
+                    {item.hsn_code && (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
+                      </p>
+                    )}
+                    {item.description && (
+                      <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+                    )}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {item.quantity}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {formatCurrencyExact(item.unit_price)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-700">
+                    {formatCurrencyExact(item.total_price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div className="flex justify-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
@@ -325,6 +316,8 @@ export default function QuotationDetail() {
             </div>
           </div>
         </div>
+
+        <PrintFooter note="This quotation is valid until the date noted above." />
       </div>
     </div>
   )

@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatLabel } from '../lib/format'
 import type { Customer } from '../components/CustomerPicker'
 import PartsUsedSection from '../components/jobsheet/PartsUsedSection'
+import PrintHeader from '../components/print/PrintHeader'
+import PrintFooter from '../components/print/PrintFooter'
 
 type JobStatus = 'intake' | 'in_progress' | 'ready' | 'delivered'
 
@@ -168,7 +170,7 @@ export default function JobSheetDetail() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link to="/job-sheets" className="text-sm text-slate-400 hover:text-slate-600">
             ← All Job Sheets
@@ -187,33 +189,118 @@ export default function JobSheetDetail() {
           </div>
         </div>
 
-        {jobSheet.invoices ? (
-          <Link
-            to={`/invoices/${jobSheet.invoices.id}`}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
-          >
-            View Invoice {jobSheet.invoices.invoice_number}
-          </Link>
-        ) : (
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => void handleMarkDeliveredAndBill()}
-            disabled={markingDelivered}
-            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+            onClick={() => window.print()}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
           >
-            {markingDelivered
-              ? 'Updating…'
-              : jobSheet.status === 'delivered'
-                ? 'Create Invoice'
-                : 'Mark Delivered & Bill'}
+            Print
           </button>
-        )}
+          {jobSheet.invoices ? (
+            <Link
+              to={`/invoices/${jobSheet.invoices.id}`}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+            >
+              View Invoice {jobSheet.invoices.invoice_number}
+            </Link>
+          ) : (
+            <button
+              onClick={() => void handleMarkDeliveredAndBill()}
+              disabled={markingDelivered}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {markingDelivered
+                ? 'Updating…'
+                : jobSheet.status === 'delivered'
+                  ? 'Create Invoice'
+                  : 'Mark Delivered & Bill'}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
-        <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+        <p className="no-print mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="mb-6 rounded-2xl bg-white p-8 card-shadow print:shadow-none">
+        <PrintHeader label="Job Sheet" />
+
+        <div className="mb-8 grid grid-cols-2 gap-6">
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Customer
+            </p>
+            <p className="text-sm font-medium text-slate-900">{jobSheet.customers?.name ?? '—'}</p>
+            <p className="text-sm text-slate-500">{jobSheet.customers?.phone ?? '—'}</p>
+            {jobSheet.customers?.address && (
+              <p className="text-sm text-slate-500">{jobSheet.customers.address}</p>
+            )}
+          </div>
+          <div className="text-right text-sm text-slate-500">
+            <p>
+              Job No: <span className="font-semibold text-slate-900">{jobSheet.job_number}</span>
+            </p>
+            <p className="mt-1">Date: {formatDate(jobSheet.created_at)}</p>
+            <p className="mt-3 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Device
+            </p>
+            <p className="text-slate-900">
+              {[jobSheet.device_brand, jobSheet.device_name].filter(Boolean).join(' ') || '—'}
+            </p>
+            {jobSheet.device_imei && <p>IMEI: {jobSheet.device_imei}</p>}
+            {jobSheet.device_color && <p>Color: {jobSheet.device_color}</p>}
+          </div>
+        </div>
+
+        <div className="mb-8 space-y-4 text-sm">
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Reported Problem
+            </p>
+            <p className="whitespace-pre-wrap text-slate-900">{jobSheet.reported_problem ?? '—'}</p>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Physical Condition
+            </p>
+            <p className="whitespace-pre-wrap text-slate-900">
+              {jobSheet.physical_condition ?? '—'}
+            </p>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Accessories Received
+            </p>
+            <p className="whitespace-pre-wrap text-slate-900">
+              {jobSheet.accessories_received ?? '—'}
+            </p>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Estimated Ready Date
+            </p>
+            <p className="text-slate-900">{formatDate(jobSheet.estimated_ready_date)}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-300 bg-slate-50 p-5 text-sm text-slate-700">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Customer Acknowledgement
+          </p>
+          <p>Device received as described above.</p>
+          <div className="mt-10 flex items-end gap-10">
+            <div className="flex-1 border-t border-slate-400 pt-1 text-xs text-slate-500">
+              Customer Signature
+            </div>
+            <div className="w-48 border-t border-slate-400 pt-1 text-xs text-slate-500">Date</div>
+          </div>
+        </div>
+
+        <PrintFooter note="Please retain this slip for your records." />
+      </div>
+
+      <div className="no-print grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Status</h2>

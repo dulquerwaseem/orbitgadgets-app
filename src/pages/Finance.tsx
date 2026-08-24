@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import Modal from '../components/Modal'
+import { hasPermission } from '../lib/permissions'
 
 interface Expense {
   id: string
@@ -45,6 +46,7 @@ type Tab = 'expenses' | 'ledger'
 export default function Finance() {
   const { membership } = useAuth()
   const isAdmin = membership?.role === 'admin'
+  const canView = isAdmin || hasPermission(membership, 'finance')
 
   const [tab, setTab] = useState<Tab>('expenses')
 
@@ -118,11 +120,11 @@ export default function Finance() {
   }
 
   useEffect(() => {
-    if (!isAdmin) return
+    if (!canView) return
     void loadExpenses()
     void loadLedgerEntries()
     void loadSummary()
-  }, [isAdmin])
+  }, [canView])
 
   const profitEstimate = useMemo(
     () => monthlyRevenue - monthlyExpenses,
@@ -189,10 +191,10 @@ export default function Finance() {
     void loadSummary()
   }
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
-        Only admins can view finance data.
+        You don't have access to finance data.
       </p>
     )
   }
@@ -274,14 +276,16 @@ export default function Finance() {
 
       {tab === 'expenses' && (
         <div>
-          <div className="mb-4 flex justify-end">
-            <button
-              onClick={openAddModal}
-              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
-            >
-              Add Expense
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={openAddModal}
+                className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
+              >
+                Add Expense
+              </button>
+            </div>
+          )}
 
           <div className="overflow-hidden rounded-2xl bg-white card-shadow">
             {expensesLoading ? (
@@ -298,7 +302,7 @@ export default function Finance() {
                     <th className="px-6 py-3">Description</th>
                     <th className="px-6 py-3">Date</th>
                     <th className="px-6 py-3">Amount</th>
-                    <th className="px-6 py-3"></th>
+                    {isAdmin && <th className="px-6 py-3"></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -314,22 +318,24 @@ export default function Finance() {
                       <td className="px-6 py-3.5 font-medium text-slate-700">
                         {formatCurrencyExact(expense.amount)}
                       </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(expense)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => void handleDelete(expense.id)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-500 transition-colors hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+                      {isAdmin && (
+                        <td className="px-6 py-3.5 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => openEditModal(expense)}
+                              className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => void handleDelete(expense.id)}
+                              className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-500 transition-colors hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

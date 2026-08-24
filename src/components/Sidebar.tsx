@@ -1,34 +1,40 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   LayoutGrid,
   ReceiptIndianRupee,
   FileText,
   Undo2,
+  Contact,
   Wrench,
   Package,
   Cog,
   Truck,
   ShoppingCart,
   Landmark,
+  Users,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { hasPermission } from '../lib/permissions'
+import type { PermissionKey } from '../lib/permissions'
 import logo from '../assets/orbit-logo.png'
+import icon from '../assets/orbit-icon.png'
 
 interface NavItem {
   to: string
   label: string
   icon: LucideIcon
+  permission?: PermissionKey
+  adminOnly?: boolean
 }
 
 interface NavGroup {
   label: string | null
   items: NavItem[]
-  adminOnly?: boolean
 }
 
 const groups: NavGroup[] = [
@@ -36,30 +42,34 @@ const groups: NavGroup[] = [
   {
     label: 'Sales',
     items: [
-      { to: '/invoices', label: 'Invoices', icon: ReceiptIndianRupee },
-      { to: '/quotations', label: 'Quotations', icon: FileText },
-      { to: '/credit-notes', label: 'Credit Notes', icon: Undo2 },
+      { to: '/invoices', label: 'Invoices', icon: ReceiptIndianRupee, permission: 'invoicing' },
+      { to: '/quotations', label: 'Quotations', icon: FileText, permission: 'invoicing' },
+      { to: '/credit-notes', label: 'Credit Notes', icon: Undo2, permission: 'invoicing' },
+      { to: '/customers', label: 'Customers', icon: Contact },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { to: '/job-sheets', label: 'Job Sheets', icon: Wrench },
-      { to: '/products', label: 'Products', icon: Package },
-      { to: '/spare-parts', label: 'Spare Parts', icon: Cog },
+      { to: '/job-sheets', label: 'Job Sheets', icon: Wrench, permission: 'job_sheets' },
+      { to: '/products', label: 'Products', icon: Package, permission: 'inventory' },
+      { to: '/spare-parts', label: 'Spare Parts', icon: Cog, permission: 'inventory' },
     ],
   },
   {
     label: 'Purchasing',
     items: [
-      { to: '/vendors', label: 'Vendors', icon: Truck },
-      { to: '/vendor-purchases', label: 'Purchases', icon: ShoppingCart },
+      { to: '/vendors', label: 'Vendors', icon: Truck, permission: 'vendor_purchases' },
+      { to: '/vendor-purchases', label: 'Purchases', icon: ShoppingCart, permission: 'vendor_purchases' },
     ],
   },
   {
     label: 'Finance',
-    adminOnly: true,
-    items: [{ to: '/finance', label: 'Finance', icon: Landmark }],
+    items: [{ to: '/finance', label: 'Finance', icon: Landmark, permission: 'finance' }],
+  },
+  {
+    label: 'Admin',
+    items: [{ to: '/team', label: 'Team', icon: Users, adminOnly: true }],
   },
 ]
 
@@ -77,7 +87,16 @@ export default function Sidebar() {
     })
   }
 
-  const visibleGroups = groups.filter((group) => !group.adminOnly || isAdmin)
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.adminOnly && !isAdmin) return false
+        if (item.permission && !hasPermission(membership, item.permission)) return false
+        return true
+      }),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <aside
@@ -87,10 +106,7 @@ export default function Sidebar() {
     >
       <div className={`flex items-center border-b border-slate-100 px-5 py-7 ${collapsed ? 'justify-center' : ''}`}>
         {collapsed ? (
-          <div
-            className="brand-dot h-8 w-8 shrink-0 rounded-full"
-            aria-label="Orbit Gadgets"
-          />
+          <img src={icon} alt="Orbit Gadgets" className="h-9 w-9 shrink-0 object-contain" />
         ) : (
           <img src={logo} alt="Orbit Gadgets" className="h-12 w-auto" />
         )}
@@ -157,12 +173,26 @@ export default function Sidebar() {
           {!collapsed && <span>Collapse</span>}
         </button>
 
-        {!collapsed && (
-          <div className="mb-2 px-3">
-            <p className="truncate text-sm font-medium text-slate-900">{user?.email}</p>
-            {membership && <p className="text-xs capitalize text-slate-400">{membership.role}</p>}
-          </div>
-        )}
+        <Link
+          to="/account"
+          title={collapsed ? 'Account' : undefined}
+          className={`mb-2 block rounded-xl px-3 py-2 transition-colors hover:bg-slate-100 ${
+            collapsed ? 'text-center' : ''
+          }`}
+        >
+          {collapsed ? (
+            <p className="truncate text-xs font-medium text-slate-500">
+              {(membership?.name || user?.email || '?').charAt(0).toUpperCase()}
+            </p>
+          ) : (
+            <>
+              <p className="truncate text-sm font-medium text-slate-900">
+                {membership?.name || user?.email}
+              </p>
+              {membership && <p className="text-xs capitalize text-slate-400">{membership.role}</p>}
+            </>
+          )}
+        </Link>
 
         <button
           onClick={() => void signOut()}

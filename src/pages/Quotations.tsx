@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
 
 interface QuotationRow {
   id: string
@@ -10,6 +12,7 @@ interface QuotationRow {
   total: number
   valid_until: string | null
   status: string
+  created_at: string
   customers: { name: string } | null
 }
 
@@ -20,17 +23,21 @@ const statusStyles: Record<string, string> = {
 
 export default function Quotations() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const customerId = searchParams.get('customer')
   const [quotations, setQuotations] = useState<QuotationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
 
   async function loadQuotations() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
+    let query = supabase
       .from('quotations')
-      .select('id, quotation_number, invoice_series, total, valid_until, status, customers(name)')
-      .order('created_at', { ascending: false })
+      .select('id, quotation_number, invoice_series, total, valid_until, status, created_at, customers(name)')
+    if (customerId) query = query.eq('customer_id', customerId)
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       setError(error.message)
@@ -42,22 +49,41 @@ export default function Quotations() {
 
   useEffect(() => {
     void loadQuotations()
-  }, [])
+  }, [customerId])
+
+  const filtered = useMemo(
+    () => quotations.filter((quotation) => isWithinDateRange(quotation.created_at, dateRange)),
+    [quotations, dateRange],
+  )
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">Quotations</h1>
-          <p className="mt-1 text-sm text-slate-400">{quotations.length} quotations</p>
+          <p className="mt-1 text-sm text-slate-400">
+            {filtered.length} of {quotations.length} quotations
+          </p>
         </div>
-        <Link
-          to="/quotations/new"
-          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
-        >
-          New Quotation
-        </Link>
+        <div className="flex items-center gap-3">
+          <DateRangeFilter onChange={setDateRange} />
+          <Link
+            to="/quotations/new"
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
+          >
+            New Quotation
+          </Link>
+        </div>
       </div>
+
+      {customerId && (
+        <p className="mb-4 text-sm text-slate-500">
+          Filtered to one customer.{' '}
+          <Link to="/quotations" className="font-medium text-slate-900 underline">
+            Clear filter
+          </Link>
+        </p>
+      )}
 
       {error && (
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
@@ -66,9 +92,11 @@ export default function Quotations() {
       <div className="overflow-hidden rounded-2xl bg-white card-shadow">
         {loading ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading quotations…</p>
-        ) : quotations.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            No quotations yet. Create your first one.
+            {quotations.length === 0
+              ? 'No quotations yet. Create your first one.'
+              : 'No quotations match this date range.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
@@ -83,7 +111,7 @@ export default function Quotations() {
               </tr>
             </thead>
             <tbody>
-              {quotations.map((quotation) => (
+              {filtered.map((quotation) => (
                 <tr
                   key={quotation.id}
                   onClick={() => navigate(`/quotations/${quotation.id}`)}
