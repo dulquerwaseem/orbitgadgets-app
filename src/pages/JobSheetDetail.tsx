@@ -10,7 +10,7 @@ import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
 import Modal from '../components/Modal'
 
-type JobStatus = 'intake' | 'in_progress' | 'ready' | 'delivered'
+type JobStatus = 'intake' | 'in_progress' | 'ready' | 'delivered' | 'returned'
 
 interface JobSheetData {
   id: string
@@ -27,19 +27,21 @@ interface JobSheetData {
   technician_notes: string | null
   estimated_ready_date: string | null
   delivered_at: string | null
+  return_reason: string | null
   invoice_id: string | null
   created_at: string
   customers: Customer | null
   invoices: { id: string; invoice_number: string } | null
 }
 
-const statusFlow: JobStatus[] = ['intake', 'in_progress', 'ready', 'delivered']
+const statusFlow: JobStatus[] = ['intake', 'in_progress', 'ready', 'delivered', 'returned']
 
 const statusStyles: Record<string, string> = {
   intake: 'bg-slate-100 text-slate-500',
   in_progress: 'bg-sky-50 text-sky-600',
   ready: 'bg-amber-50 text-amber-700',
   delivered: 'bg-emerald-50 text-emerald-600',
+  returned: 'bg-slate-200 text-slate-600',
 }
 
 export default function JobSheetDetail() {
@@ -54,6 +56,11 @@ export default function JobSheetDetail() {
   const [savingNotes, setSavingNotes] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [markingDelivered, setMarkingDelivered] = useState(false)
+
+  const [returnModalOpen, setReturnModalOpen] = useState(false)
+  const [returnReason, setReturnReason] = useState('')
+  const [savingReturn, setSavingReturn] = useState(false)
+  const [returnError, setReturnError] = useState<string | null>(null)
 
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null)
@@ -80,7 +87,7 @@ export default function JobSheetDetail() {
       .select(
         'id, job_number, status, device_name, device_brand, device_imei, device_color, device_password, ' +
           'reported_problem, physical_condition, accessories_received, technician_notes, ' +
-          'estimated_ready_date, delivered_at, invoice_id, created_at, ' +
+          'estimated_ready_date, delivered_at, return_reason, invoice_id, created_at, ' +
           'customers(id, name, phone, address, gst_number), ' +
           'invoices!job_sheets_invoice_id_fkey(id, invoice_number)',
       )
@@ -125,6 +132,14 @@ export default function JobSheetDetail() {
 
   async function handleStatusChange(next: JobStatus) {
     if (!jobSheet || next === jobSheet.status) return
+
+    if (next === 'returned') {
+      setReturnReason('')
+      setReturnError(null)
+      setReturnModalOpen(true)
+      return
+    }
+
     setUpdatingStatus(true)
     setError(null)
 
@@ -143,10 +158,37 @@ export default function JobSheetDetail() {
     setJobSheet({ ...jobSheet, status: next })
   }
 
+  async function handleConfirmReturn(e: FormEvent) {
+    e.preventDefault()
+    if (!jobSheet) return
+    if (!returnReason.trim()) {
+      setReturnError('A reason is required.')
+      return
+    }
+
+    setSavingReturn(true)
+    setReturnError(null)
+
+    const { error } = await supabase
+      .from('job_sheets')
+      .update({ status: 'returned', return_reason: returnReason.trim() })
+      .eq('id', jobSheet.id)
+
+    setSavingReturn(false)
+
+    if (error) {
+      setReturnError(error.message)
+      return
+    }
+
+    setJobSheet({ ...jobSheet, status: 'returned', return_reason: returnReason.trim() })
+    setReturnModalOpen(false)
+  }
+
   async function handleMarkDeliveredAndBill() {
     if (!jobSheet) return
 
-    if (jobSheet.status !== 'delivered') {
+    if (jobSheet.status !== 'delivered' && jobSheet.status !== 'returned') {
       if (
         !window.confirm('Mark this job sheet as delivered and start a new invoice for it?')
       )
@@ -294,7 +336,7 @@ export default function JobSheetDetail() {
             >
               {markingDelivered
                 ? 'Updating…'
-                : jobSheet.status === 'delivered'
+                : jobSheet.status === 'delivered' || jobSheet.status === 'returned'
                   ? 'Create Invoice'
                   : 'Mark Delivered & Bill'}
             </button>
@@ -408,6 +450,11 @@ export default function JobSheetDetail() {
             {jobSheet.delivered_at && (
               <p className="mt-2 text-xs text-slate-400">
                 Delivered on {formatDate(jobSheet.delivered_at)}
+              </p>
+            )}
+            {jobSheet.status === 'returned' && jobSheet.return_reason && (
+              <p className="mt-2 text-xs text-slate-500">
+                Return reason: {jobSheet.return_reason}
               </p>
             )}
           </section>
@@ -661,6 +708,49 @@ export default function JobSheetDetail() {
               className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {savingEdit ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={returnModalOpen} onClose={() => setReturnModalOpen(false)} title="Mark as Returned">
+        <form onSubmit={handleConfirmReturn} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            For a device given back to the customer without being repaired or delivered — declined
+            quote, part unavailable, not economical to fix, etc. This does not mark the device
+            delivered. You can still create a direct invoice against this job sheet afterward if
+            there's a diagnostic fee to bill.
+          </p>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Reason</label>
+            <textarea
+              required
+              rows={3}
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              placeholder="e.g. Customer declined the repair quote"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          {returnError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{returnError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setReturnModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={savingReturn}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {savingReturn ? 'Saving…' : 'Mark as Returned'}
             </button>
           </div>
         </form>

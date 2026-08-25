@@ -16,7 +16,7 @@ interface JobSheetRow {
   customers: { name: string } | null
 }
 
-type StatusFilter = 'all' | 'intake' | 'in_progress' | 'ready' | 'delivered'
+type StatusFilter = 'all' | 'intake' | 'in_progress' | 'ready' | 'delivered' | 'returned'
 
 const statusTabs: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -24,6 +24,7 @@ const statusTabs: { value: StatusFilter; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },
   { value: 'ready', label: 'Ready' },
   { value: 'delivered', label: 'Delivered' },
+  { value: 'returned', label: 'Returned' },
 ]
 
 const statusStyles: Record<string, string> = {
@@ -31,6 +32,7 @@ const statusStyles: Record<string, string> = {
   in_progress: 'bg-sky-50 text-sky-600',
   ready: 'bg-amber-50 text-amber-700',
   delivered: 'bg-emerald-50 text-emerald-600',
+  returned: 'bg-slate-200 text-slate-600',
 }
 
 export default function JobSheets() {

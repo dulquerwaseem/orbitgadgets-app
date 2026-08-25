@@ -58,6 +58,7 @@ const jobSheetStatusStyles: Record<string, string> = {
   in_progress: 'bg-sky-50 text-sky-600',
   ready: 'bg-amber-50 text-amber-700',
   delivered: 'bg-emerald-50 text-emerald-600',
+  returned: 'bg-slate-200 text-slate-600',
 }
 
 const quotationStatusStyles: Record<string, string> = {

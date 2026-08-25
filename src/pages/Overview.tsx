@@ -75,7 +75,11 @@ export default function Overview() {
       { data: recentInvoicesData },
       { data: activeJobSheetsData },
     ] = await Promise.all([
-      supabase.from('job_sheets').select('id', { count: 'exact', head: true }).neq('status', 'delivered'),
+      supabase
+        .from('job_sheets')
+        .select('id', { count: 'exact', head: true })
+        .neq('status', 'delivered')
+        .neq('status', 'returned'),
       supabase
         .from('invoices')
         .select('final_price, amount_paid')
@@ -95,6 +99,7 @@ export default function Overview() {
         .from('job_sheets')
         .select('id, job_number, status, device_name, device_brand, customers(name)')
         .neq('status', 'delivered')
+        .neq('status', 'returned')
         .order('created_at', { ascending: false })
         .limit(5),
     ])
