@@ -17,6 +17,8 @@ export interface DraftItem {
   quantity: number
   unit_price: number
   cost_price: number | null
+  warranty_days: number | null
+  warranty_notes: string | null
 }
 
 interface ProductOption {
@@ -52,9 +54,10 @@ const typeLabels: Record<LineItemType, string> = {
 
 interface LineItemFormProps {
   onAdd: (item: DraftItem) => void
+  showWarranty?: boolean
 }
 
-export default function LineItemForm({ onAdd }: LineItemFormProps) {
+export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFormProps) {
   const [itemType, setItemType] = useState<LineItemType>('service')
 
   const [products, setProducts] = useState<ProductOption[]>([])
@@ -79,6 +82,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
   const [unitPrice, setUnitPrice] = useState('')
   const [description, setDescription] = useState('')
   const [hsnCode, setHsnCode] = useState('')
+  const [warrantyDays, setWarrantyDays] = useState('')
+  const [warrantyNotes, setWarrantyNotes] = useState('')
 
   async function loadOptions() {
     const [{ data: productData }, { data: spareData }] = await Promise.all([
@@ -120,6 +125,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
     setUnitPrice('')
     setDescription('')
     setHsnCode('')
+    setWarrantyDays('')
+    setWarrantyNotes('')
   }
 
   function handleTypeChange(next: LineItemType) {
@@ -197,6 +204,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
 
     const trimmedDescription = description.trim() || null
     const trimmedHsnCode = hsnCode.trim() || null
+    const parsedWarrantyDays = warrantyDays ? Number(warrantyDays) : null
+    const trimmedWarrantyNotes = warrantyNotes.trim() || null
     let draft: DraftItem
 
     if (itemType === 'product' && productEntryMode === 'search' && selectedProduct) {
@@ -214,6 +223,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         quantity: 1,
         unit_price: Number(unitPrice),
         cost_price: selectedProduct.purchase_price,
+        warranty_days: parsedWarrantyDays,
+        warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'product' && productEntryMode === 'manual') {
       const trimmedBrand = manualBrand.trim()
@@ -232,6 +243,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         quantity: 1,
         unit_price: Number(unitPrice),
         cost_price: null,
+        warranty_days: parsedWarrantyDays,
+        warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'spare' && sparePartEntryMode === 'search' && selectedSparePart) {
       draft = {
@@ -248,6 +261,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         quantity: Number(quantity),
         unit_price: Number(unitPrice),
         cost_price: selectedSparePart.purchase_price,
+        warranty_days: parsedWarrantyDays,
+        warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'spare' && sparePartEntryMode === 'manual') {
       draft = {
@@ -264,6 +279,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         quantity: Number(quantity),
         unit_price: Number(unitPrice),
         cost_price: null,
+        warranty_days: parsedWarrantyDays,
+        warranty_notes: trimmedWarrantyNotes,
       }
     } else {
       draft = {
@@ -280,6 +297,8 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
         quantity: Number(quantity),
         unit_price: Number(unitPrice),
         cost_price: null,
+        warranty_days: parsedWarrantyDays,
+        warranty_notes: trimmedWarrantyNotes,
       }
     }
 
@@ -549,6 +568,27 @@ export default function LineItemForm({ onAdd }: LineItemFormProps) {
           className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
         />
       </div>
+
+      {showWarranty && (
+        <div className="mb-3 grid grid-cols-[auto_1fr] gap-2">
+          <input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Warranty (days)"
+            value={warrantyDays}
+            onChange={(e) => setWarrantyDays(e.target.value)}
+            className="w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+          <input
+            type="text"
+            placeholder="Warranty notes (optional, e.g. parts only, not physical damage)"
+            value={warrantyNotes}
+            onChange={(e) => setWarrantyNotes(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
         <div>

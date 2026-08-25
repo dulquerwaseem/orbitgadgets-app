@@ -114,6 +114,8 @@ export default function InvoiceNew() {
         quantity: item.quantity,
         unit_price: item.unit_price,
         cost_price: item.cost_price,
+        warranty_days: item.warranty_days,
+        warranty_notes: item.warranty_notes,
       })),
     })
 
@@ -236,7 +238,7 @@ export default function InvoiceNew() {
               </div>
             )}
 
-            <LineItemForm onAdd={(item) => setItems((prev) => [...prev, item])} />
+            <LineItemForm onAdd={(item) => setItems((prev) => [...prev, item])} showWarranty />
           </section>
         </div>
 

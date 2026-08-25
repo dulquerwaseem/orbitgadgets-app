@@ -14,6 +14,7 @@ export default function JobSheetNew() {
   const [deviceBrand, setDeviceBrand] = useState('')
   const [deviceImei, setDeviceImei] = useState('')
   const [deviceColor, setDeviceColor] = useState('')
+  const [devicePassword, setDevicePassword] = useState('')
   const [reportedProblem, setReportedProblem] = useState('')
   const [physicalCondition, setPhysicalCondition] = useState('')
   const [accessoriesReceived, setAccessoriesReceived] = useState('')
@@ -44,6 +45,7 @@ export default function JobSheetNew() {
       p_physical_condition: physicalCondition.trim() || null,
       p_accessories_received: accessoriesReceived.trim() || null,
       p_estimated_ready_date: estimatedReadyDate || null,
+      p_device_password: devicePassword.trim() || null,
     })
 
     setSaving(false)
@@ -111,6 +113,17 @@ export default function JobSheetNew() {
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
                 />
               </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                Device Password / PIN (optional)
+              </label>
+              <input
+                type="text"
+                value={devicePassword}
+                onChange={(e) => setDevicePassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
             </div>
           </div>
         </section>

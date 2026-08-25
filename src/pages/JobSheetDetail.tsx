@@ -20,6 +20,7 @@ interface JobSheetData {
   device_brand: string | null
   device_imei: string | null
   device_color: string | null
+  device_password: string | null
   reported_problem: string | null
   physical_condition: string | null
   accessories_received: string | null
@@ -61,6 +62,7 @@ export default function JobSheetDetail() {
     device_brand: '',
     device_imei: '',
     device_color: '',
+    device_password: '',
     reported_problem: '',
     physical_condition: '',
     accessories_received: '',
@@ -76,7 +78,7 @@ export default function JobSheetDetail() {
     const { data, error } = await supabase
       .from('job_sheets')
       .select(
-        'id, job_number, status, device_name, device_brand, device_imei, device_color, ' +
+        'id, job_number, status, device_name, device_brand, device_imei, device_color, device_password, ' +
           'reported_problem, physical_condition, accessories_received, technician_notes, ' +
           'estimated_ready_date, delivered_at, invoice_id, created_at, ' +
           'customers(id, name, phone, address, gst_number), ' +
@@ -184,6 +186,7 @@ export default function JobSheetDetail() {
       device_brand: jobSheet.device_brand ?? '',
       device_imei: jobSheet.device_imei ?? '',
       device_color: jobSheet.device_color ?? '',
+      device_password: jobSheet.device_password ?? '',
       reported_problem: jobSheet.reported_problem ?? '',
       physical_condition: jobSheet.physical_condition ?? '',
       accessories_received: jobSheet.accessories_received ?? '',
@@ -213,6 +216,7 @@ export default function JobSheetDetail() {
         device_brand: editForm.device_brand.trim() || null,
         device_imei: editForm.device_imei.trim() || null,
         device_color: editForm.device_color.trim() || null,
+        device_password: editForm.device_password.trim() || null,
         reported_problem: editForm.reported_problem.trim() || null,
         physical_condition: editForm.physical_condition.trim() || null,
         accessories_received: editForm.accessories_received.trim() || null,
@@ -329,6 +333,7 @@ export default function JobSheetDetail() {
             </p>
             {jobSheet.device_imei && <p>IMEI: {jobSheet.device_imei}</p>}
             {jobSheet.device_color && <p>Color: {jobSheet.device_color}</p>}
+            {jobSheet.device_password && <p>Password/PIN: {jobSheet.device_password}</p>}
           </div>
         </div>
 
@@ -427,6 +432,12 @@ export default function JobSheetDetail() {
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Color</p>
                 <p className="mt-0.5 text-slate-900">{jobSheet.device_color ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Device Password / PIN
+                </p>
+                <p className="mt-0.5 text-slate-900">{jobSheet.device_password ?? '—'}</p>
               </div>
             </div>
           </section>
@@ -574,6 +585,18 @@ export default function JobSheetDetail() {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Device Password / PIN
+            </label>
+            <input
+              type="text"
+              value={editForm.device_password}
+              onChange={(e) => setEditForm({ ...editForm, device_password: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
           </div>
 
           <div>

@@ -44,6 +44,14 @@ interface InvoiceItemRow {
   quantity: number
   unit_price: number
   total_price: number
+  warranty_days: number | null
+  warranty_notes: string | null
+}
+
+function warrantyUntil(invoiceCreatedAt: string, days: number): string {
+  const until = new Date(invoiceCreatedAt)
+  until.setDate(until.getDate() + days)
+  return formatDate(until.toISOString())
 }
 
 interface CreditNoteRow {
@@ -97,7 +105,7 @@ export default function InvoiceDetail() {
       supabase
         .from('invoice_items')
         .select(
-          'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price',
+          'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price, warranty_days, warranty_notes',
         )
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: true }),
@@ -381,6 +389,13 @@ export default function InvoiceDetail() {
                     )}
                     {item.description && (
                       <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+                    )}
+                    {item.warranty_days != null && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Warranty: {item.warranty_days} day{item.warranty_days === 1 ? '' : 's'} (until{' '}
+                        {warrantyUntil(invoice.created_at, item.warranty_days)})
+                        {item.warranty_notes ? ` — ${item.warranty_notes}` : ''}
+                      </p>
                     )}
                   </td>
                   <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
