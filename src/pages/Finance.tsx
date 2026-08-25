@@ -111,6 +111,7 @@ export default function Finance() {
         .from('invoices')
         .select('final_price')
         .eq('superseded', false)
+        .eq('void', false)
         .gte('created_at', startOfMonth.toISOString())
         .lt('created_at', startOfNextMonth.toISOString()),
     ])

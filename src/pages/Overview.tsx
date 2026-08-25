@@ -80,13 +80,15 @@ export default function Overview() {
         .from('invoices')
         .select('final_price, amount_paid')
         .in('payment_status', ['unpaid', 'partial'])
-        .eq('superseded', false),
+        .eq('superseded', false)
+        .eq('void', false),
       supabase.from('spare_parts').select('quantity, reorder_level'),
       supabase.from('quotations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase
         .from('invoices')
         .select('id, invoice_number, final_price, payment_status, customers(name)')
         .eq('superseded', false)
+        .eq('void', false)
         .order('created_at', { ascending: false })
         .limit(5),
       supabase

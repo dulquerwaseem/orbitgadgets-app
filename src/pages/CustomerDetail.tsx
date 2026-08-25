@@ -133,6 +133,7 @@ export default function CustomerDetail() {
         .select('id, invoice_number, created_at, final_price, payment_status')
         .eq('customer_id', customerId)
         .eq('superseded', false)
+        .eq('void', false)
         .order('created_at', { ascending: false })
         .limit(HISTORY_LIMIT + 1),
       supabase

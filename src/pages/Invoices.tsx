@@ -13,6 +13,7 @@ interface InvoiceRow {
   final_price: number
   payment_status: string
   created_at: string
+  void: boolean
   customers: { name: string } | null
 }
 
@@ -32,15 +33,19 @@ export default function Invoices() {
   const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [showVoid, setShowVoid] = useState(false)
 
   async function loadInvoices() {
     setLoading(true)
     setError(null)
     let query = supabase
       .from('invoices')
-      .select('id, invoice_number, invoice_series, final_price, payment_status, created_at, customers(name)')
+      .select(
+        'id, invoice_number, invoice_series, final_price, payment_status, created_at, void, customers(name)',
+      )
       .eq('superseded', false)
     if (customerId) query = query.eq('customer_id', customerId)
+    if (!showVoid) query = query.eq('void', false)
     const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
@@ -53,7 +58,7 @@ export default function Invoices() {
 
   useEffect(() => {
     void loadInvoices()
-  }, [customerId])
+  }, [customerId, showVoid])
 
   const filtered = useMemo(
     () => invoices.filter((invoice) => isWithinDateRange(invoice.created_at, dateRange)),
@@ -61,7 +66,10 @@ export default function Invoices() {
   )
 
   const gstInvoiceIds = useMemo(
-    () => filtered.filter((invoice) => invoice.invoice_series === 'gst').map((invoice) => invoice.id),
+    () =>
+      filtered
+        .filter((invoice) => invoice.invoice_series === 'gst' && !invoice.void)
+        .map((invoice) => invoice.id),
     [filtered],
   )
 
@@ -115,6 +123,15 @@ export default function Invoices() {
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter onChange={setDateRange} />
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            <input
+              type="checkbox"
+              checked={showVoid}
+              onChange={(e) => setShowVoid(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+            />
+            Show void
+          </label>
           <button
             type="button"
             onClick={() => void handleExport()}
@@ -178,7 +195,14 @@ export default function Invoices() {
                   }}
                   className="cursor-pointer border-b border-slate-50 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 active:bg-slate-100"
                 >
-                  <td className="px-6 py-3.5 font-medium text-slate-900">{invoice.invoice_number}</td>
+                  <td className="px-6 py-3.5 font-medium text-slate-900">
+                    {invoice.invoice_number}
+                    {invoice.void && (
+                      <span className="ml-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                        Void
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-3.5 text-slate-500">{invoice.customers?.name ?? '—'}</td>
                   <td className="px-6 py-3.5">
                     <span

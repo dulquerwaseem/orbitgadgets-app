@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
 import InvoicePaymentsSection from '../components/invoice/InvoicePaymentsSection'
+import Modal from '../components/Modal'
 
 interface InvoiceDetailData {
   id: string
@@ -23,6 +25,8 @@ interface InvoiceDetailData {
   amount_paid: number
   converted_from_invoice_id: string | null
   superseded: boolean
+  void: boolean
+  void_reason: string | null
   created_at: string
   customers: { name: string; phone: string; address: string | null; gst_number: string | null } | null
   job_sheets: { job_number: string } | null
@@ -63,9 +67,15 @@ export default function InvoiceDetail() {
   const [items, setItems] = useState<InvoiceItemRow[]>([])
   const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
   const [supersededBy, setSupersededBy] = useState<{ id: string; invoice_number: string } | null>(null)
+  const [paymentsCount, setPaymentsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
+
+  const [voidModalOpen, setVoidModalOpen] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
+  const [voiding, setVoiding] = useState(false)
+  const [voidError, setVoidError] = useState<string | null>(null)
 
   async function loadInvoice(invoiceId: string) {
     setLoading(true)
@@ -75,6 +85,7 @@ export default function InvoiceDetail() {
       { data: invoiceData, error: invoiceError },
       { data: itemsData, error: itemsError },
       { data: creditNoteData },
+      { count: paymentsCountData },
     ] = await Promise.all([
       supabase
         .from('invoices')
@@ -95,6 +106,10 @@ export default function InvoiceDetail() {
         .select('id, credit_note_number, return_date, total_refunded')
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('invoice_payments')
+        .select('id', { count: 'exact', head: true })
+        .eq('invoice_id', invoiceId),
     ])
 
     if (invoiceError || !invoiceData) {
@@ -111,6 +126,7 @@ export default function InvoiceDetail() {
     setInvoice(invoiceData as unknown as InvoiceDetailData)
     setItems(itemsData ?? [])
     setCreditNotes(creditNoteData ?? [])
+    setPaymentsCount(paymentsCountData ?? 0)
 
     if ((invoiceData as unknown as InvoiceDetailData).superseded) {
       const { data: newer } = await supabase
@@ -152,6 +168,45 @@ export default function InvoiceDetail() {
     navigate(`/invoices/${data.id}`)
   }
 
+  function openVoidModal() {
+    setVoidReason('')
+    setVoidError(null)
+    setVoidModalOpen(true)
+  }
+
+  async function handleVoid(e: FormEvent) {
+    e.preventDefault()
+    if (!id) return
+    if (!voidReason.trim()) {
+      setVoidError('A reason is required.')
+      return
+    }
+    if (
+      !window.confirm(
+        'Void this invoice? This reverses its inventory effects and cannot be undone.',
+      )
+    )
+      return
+
+    setVoiding(true)
+    setVoidError(null)
+
+    const { error } = await supabase.rpc('void_invoice', {
+      p_invoice_id: id,
+      p_reason: voidReason.trim(),
+    })
+
+    setVoiding(false)
+
+    if (error) {
+      setVoidError(error.message)
+      return
+    }
+
+    setVoidModalOpen(false)
+    void loadInvoice(id)
+  }
+
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoice…</p>
   }
@@ -175,6 +230,11 @@ export default function InvoiceDetail() {
             <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
               {invoice.invoice_number}
             </h1>
+            {invoice.void && (
+              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                Void
+              </span>
+            )}
             {creditNotes.length > 0 && (
               <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
                 Returned
@@ -183,7 +243,15 @@ export default function InvoiceDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {!invoice.superseded && (
+          {!invoice.superseded && !invoice.void && creditNotes.length === 0 && paymentsCount === 0 && (
+            <button
+              onClick={openVoidModal}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
+            >
+              Void Invoice
+            </button>
+          )}
+          {!invoice.superseded && !invoice.void && (
             <Link
               to={`/invoices/${invoice.id}/credit-notes/new`}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
@@ -191,7 +259,7 @@ export default function InvoiceDetail() {
               Create Credit Note
             </Link>
           )}
-          {invoice.invoice_series === 'non_gst' && !invoice.superseded && (
+          {invoice.invoice_series === 'non_gst' && !invoice.superseded && !invoice.void && (
             <button
               onClick={() => void handleConvert()}
               disabled={converting}
@@ -211,6 +279,12 @@ export default function InvoiceDetail() {
 
       {error && (
         <p className="no-print mb-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+      )}
+
+      {invoice.void && (
+        <div className="no-print mb-4 rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+          This invoice was voided.{invoice.void_reason ? ` Reason: ${invoice.void_reason}` : ''}
+        </div>
       )}
 
       {invoice.superseded && (
@@ -380,7 +454,7 @@ export default function InvoiceDetail() {
         <PrintFooter note="Thank you for your business." />
       </div>
 
-      {!invoice.superseded && (
+      {!invoice.superseded && !invoice.void && (
         <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Payments</h2>
           <InvoicePaymentsSection
@@ -414,6 +488,48 @@ export default function InvoiceDetail() {
           </div>
         </div>
       )}
+
+      <Modal open={voidModalOpen} onClose={() => setVoidModalOpen(false)} title="Void Invoice">
+        <form onSubmit={handleVoid} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            This is for genuine data-entry mistakes — wrong customer, mistyped price — not a
+            return or refund. Voiding reverses this invoice's inventory effects and cannot be
+            undone. Use a credit note instead if the sale itself was correct.
+          </p>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Reason</label>
+            <textarea
+              required
+              rows={3}
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="e.g. Wrong customer selected, invoice recreated as INV-..."
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          {voidError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{voidError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setVoidModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={voiding}
+              className="rounded-xl bg-red-600 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {voiding ? 'Voiding…' : 'Void Invoice'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
