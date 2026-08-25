@@ -1,0 +1,2 @@
+id;quotation_number;customer_name;customer_phone;customer_address;customer_gst;is_tax_invoice;labor_charge;labor_sac_code;discount;subtotal;total;valid_until;notes;status;converted_invoice_id;tenant_id;user_id;created_by;created_at;updated_at
+db45e786-6848-424e-b1f6-d1a0924dca25;OG-QT-00003;Kiran;7899277284;;;false;0;;0;23000;23000;2026-08-11;;Draft;;3af5d475-8eaa-4130-a8b5-5253b8f478f8;a24f0333-9056-4c23-893b-8acbc1c57ec1;a24f0333-9056-4c23-893b-8acbc1c57ec1;2026-08-08 12:13:23.633904+00;2026-08-08 12:13:23.633904+00
