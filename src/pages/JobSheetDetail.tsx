@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatLabel } from '../lib/format'
+import CustomerPicker from '../components/CustomerPicker'
 import type { Customer } from '../components/CustomerPicker'
 import PartsUsedSection from '../components/jobsheet/PartsUsedSection'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
+import Modal from '../components/Modal'
 
 type JobStatus = 'intake' | 'in_progress' | 'ready' | 'delivered'
 
@@ -50,6 +53,21 @@ export default function JobSheetDetail() {
   const [savingNotes, setSavingNotes] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [markingDelivered, setMarkingDelivered] = useState(false)
+
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null)
+  const [editForm, setEditForm] = useState({
+    device_name: '',
+    device_brand: '',
+    device_imei: '',
+    device_color: '',
+    reported_problem: '',
+    physical_condition: '',
+    accessories_received: '',
+    estimated_ready_date: '',
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   async function loadJobSheet(jobSheetId: string) {
     setLoading(true)
@@ -158,6 +176,61 @@ export default function JobSheetDetail() {
     })
   }
 
+  function openEditModal() {
+    if (!jobSheet) return
+    setEditCustomer(jobSheet.customers)
+    setEditForm({
+      device_name: jobSheet.device_name ?? '',
+      device_brand: jobSheet.device_brand ?? '',
+      device_imei: jobSheet.device_imei ?? '',
+      device_color: jobSheet.device_color ?? '',
+      reported_problem: jobSheet.reported_problem ?? '',
+      physical_condition: jobSheet.physical_condition ?? '',
+      accessories_received: jobSheet.accessories_received ?? '',
+      estimated_ready_date: jobSheet.estimated_ready_date ?? '',
+    })
+    setEditError(null)
+    setEditModalOpen(true)
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!jobSheet) return
+
+    if (!editCustomer) {
+      setEditError('Select a customer.')
+      return
+    }
+
+    setSavingEdit(true)
+    setEditError(null)
+
+    const { error } = await supabase
+      .from('job_sheets')
+      .update({
+        customer_id: editCustomer.id,
+        device_name: editForm.device_name.trim() || null,
+        device_brand: editForm.device_brand.trim() || null,
+        device_imei: editForm.device_imei.trim() || null,
+        device_color: editForm.device_color.trim() || null,
+        reported_problem: editForm.reported_problem.trim() || null,
+        physical_condition: editForm.physical_condition.trim() || null,
+        accessories_received: editForm.accessories_received.trim() || null,
+        estimated_ready_date: editForm.estimated_ready_date || null,
+      })
+      .eq('id', jobSheet.id)
+
+    setSavingEdit(false)
+
+    if (error) {
+      setEditError(error.message)
+      return
+    }
+
+    setEditModalOpen(false)
+    void loadJobSheet(jobSheet.id)
+  }
+
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading job sheet…</p>
   }
@@ -190,6 +263,12 @@ export default function JobSheetDetail() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={openEditModal}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+          >
+            Edit Details
+          </button>
           <button
             onClick={() => window.print()}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
@@ -440,6 +519,129 @@ export default function JobSheetDetail() {
           </section>
         </div>
       </div>
+
+      <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Intake Details">
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          {jobSheet.status === 'delivered' && (
+            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              This job sheet has already been delivered{jobSheet.invoices ? ' and invoiced' : ''}. The
+              customer's printed intake slip won't reflect changes made here.
+            </p>
+          )}
+
+          <div>
+            <h3 className="mb-1.5 text-sm font-medium text-slate-600">Customer</h3>
+            <CustomerPicker value={editCustomer} onChange={setEditCustomer} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">Brand</label>
+              <input
+                type="text"
+                value={editForm.device_brand}
+                onChange={(e) => setEditForm({ ...editForm, device_brand: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">Device Name</label>
+              <input
+                type="text"
+                value={editForm.device_name}
+                onChange={(e) => setEditForm({ ...editForm, device_name: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">IMEI / Serial</label>
+              <input
+                type="text"
+                value={editForm.device_imei}
+                onChange={(e) => setEditForm({ ...editForm, device_imei: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">Color</label>
+              <input
+                type="text"
+                value={editForm.device_color}
+                onChange={(e) => setEditForm({ ...editForm, device_color: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Reported Problem</label>
+            <textarea
+              rows={2}
+              value={editForm.reported_problem}
+              onChange={(e) => setEditForm({ ...editForm, reported_problem: e.target.value })}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Physical Condition</label>
+            <textarea
+              rows={2}
+              value={editForm.physical_condition}
+              onChange={(e) => setEditForm({ ...editForm, physical_condition: e.target.value })}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Accessories Received
+            </label>
+            <textarea
+              rows={2}
+              value={editForm.accessories_received}
+              onChange={(e) => setEditForm({ ...editForm, accessories_received: e.target.value })}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Estimated Ready Date
+            </label>
+            <input
+              type="date"
+              value={editForm.estimated_ready_date}
+              onChange={(e) => setEditForm({ ...editForm, estimated_ready_date: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          {editError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={savingEdit}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {savingEdit ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

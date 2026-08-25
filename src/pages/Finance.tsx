@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import Modal from '../components/Modal'
 import { hasPermission } from '../lib/permissions'
+import DateRangeFilter from '../components/DateRangeFilter'
+import type { ResolvedDateRange } from '../components/DateRangeFilter'
 
 interface Expense {
   id: string
@@ -34,6 +36,13 @@ interface LedgerEntry {
 
 const categoryOptions = ['rent', 'utilities', 'salaries', 'supplies', 'other']
 
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const emptyForm: ExpenseFormValues = {
   category: 'other',
   description: '',
@@ -49,6 +58,8 @@ export default function Finance() {
   const canView = isAdmin || hasPermission(membership, 'finance')
 
   const [tab, setTab] = useState<Tab>('expenses')
+  const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
+  const [rangeLabel, setRangeLabel] = useState('This Month')
 
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [expensesLoading, setExpensesLoading] = useState(true)
@@ -66,13 +77,13 @@ export default function Finance() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  async function loadExpenses() {
+  async function loadExpenses(range: ResolvedDateRange) {
     setExpensesLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('id, category, description, amount, expense_date')
-      .order('expense_date', { ascending: false })
+    let query = supabase.from('expenses').select('id, category, description, amount, expense_date')
+    if (range.start) query = query.gte('expense_date', formatDateOnly(range.start))
+    if (range.end) query = query.lte('expense_date', formatDateOnly(range.end))
+    const { data, error } = await query.order('expense_date', { ascending: false })
 
     if (error) {
       setError(error.message)
@@ -82,39 +93,38 @@ export default function Finance() {
     setExpensesLoading(false)
   }
 
-  async function loadLedgerEntries() {
+  async function loadLedgerEntries(range: ResolvedDateRange) {
     setLedgerLoading(true)
-    const { data, error } = await supabase
+    let query = supabase
       .from('ledger_entries')
       .select('id, entry_type, account, amount, description, created_at, invoices(invoice_number)')
-      .order('created_at', { ascending: false })
+    if (range.start) query = query.gte('created_at', range.start.toISOString())
+    if (range.end) query = query.lte('created_at', range.end.toISOString())
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) setError(error.message)
     setLedgerEntries((data as unknown as LedgerEntry[]) ?? [])
     setLedgerLoading(false)
   }
 
-  async function loadSummary() {
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    const startOfMonthDate = startOfMonth.toISOString().slice(0, 10)
-    const startOfNextMonthDate = startOfNextMonth.toISOString().slice(0, 10)
+  async function loadSummary(range: ResolvedDateRange) {
+    let expenseQuery = supabase.from('expenses').select('amount')
+    let invoiceQuery = supabase
+      .from('invoices')
+      .select('final_price')
+      .eq('superseded', false)
+      .eq('void', false)
 
-    const [{ data: expenseRows }, { data: invoiceRows }] = await Promise.all([
-      supabase
-        .from('expenses')
-        .select('amount')
-        .gte('expense_date', startOfMonthDate)
-        .lt('expense_date', startOfNextMonthDate),
-      supabase
-        .from('invoices')
-        .select('final_price')
-        .eq('superseded', false)
-        .eq('void', false)
-        .gte('created_at', startOfMonth.toISOString())
-        .lt('created_at', startOfNextMonth.toISOString()),
-    ])
+    if (range.start) {
+      expenseQuery = expenseQuery.gte('expense_date', formatDateOnly(range.start))
+      invoiceQuery = invoiceQuery.gte('created_at', range.start.toISOString())
+    }
+    if (range.end) {
+      expenseQuery = expenseQuery.lte('expense_date', formatDateOnly(range.end))
+      invoiceQuery = invoiceQuery.lte('created_at', range.end.toISOString())
+    }
+
+    const [{ data: expenseRows }, { data: invoiceRows }] = await Promise.all([expenseQuery, invoiceQuery])
 
     setMonthlyExpenses((expenseRows ?? []).reduce((sum, r) => sum + r.amount, 0))
     setMonthlyRevenue((invoiceRows ?? []).reduce((sum, r) => sum + r.final_price, 0))
@@ -122,10 +132,10 @@ export default function Finance() {
 
   useEffect(() => {
     if (!canView) return
-    void loadExpenses()
-    void loadLedgerEntries()
-    void loadSummary()
-  }, [canView])
+    void loadExpenses(dateRange)
+    void loadLedgerEntries(dateRange)
+    void loadSummary(dateRange)
+  }, [canView, dateRange])
 
   const profitEstimate = useMemo(
     () => monthlyRevenue - monthlyExpenses,
@@ -177,8 +187,8 @@ export default function Finance() {
     }
 
     setModalOpen(false)
-    void loadExpenses()
-    void loadSummary()
+    void loadExpenses(dateRange)
+    void loadSummary(dateRange)
   }
 
   async function handleDelete(id: string) {
@@ -189,7 +199,7 @@ export default function Finance() {
       return
     }
     setExpenses((prev) => prev.filter((e) => e.id !== id))
-    void loadSummary()
+    void loadSummary(dateRange)
   }
 
   if (!canView) {
@@ -216,7 +226,7 @@ export default function Finance() {
             {formatCurrencyExact(monthlyExpenses)}
           </p>
           <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-            Expenses This Month
+            Expenses ({rangeLabel})
           </p>
         </div>
         <div className="rounded-2xl bg-white p-5 card-shadow">
@@ -227,7 +237,7 @@ export default function Finance() {
             {formatCurrencyExact(monthlyRevenue)}
           </p>
           <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-            Revenue This Month
+            Revenue ({rangeLabel})
           </p>
         </div>
         <div className="rounded-2xl bg-white p-5 card-shadow">
@@ -249,26 +259,35 @@ export default function Finance() {
             {formatCurrencyExact(profitEstimate)}
           </p>
           <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-            Profit Estimate
+            Profit Estimate ({rangeLabel})
           </p>
         </div>
       </div>
 
-      <div className="mb-4 flex gap-1.5">
-        {(['expenses', 'ledger'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              tab === t
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            {t === 'expenses' ? 'Expenses' : 'Ledger'}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1.5">
+          {(['expenses', 'ledger'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                tab === t
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {t === 'expenses' ? 'Expenses' : 'Ledger'}
+            </button>
+          ))}
+        </div>
+        <DateRangeFilter
+          defaultPreset="this_month"
+          onChange={(range, label) => {
+            setDateRange(range)
+            setRangeLabel(label)
+          }}
+        />
       </div>
 
       {error && (

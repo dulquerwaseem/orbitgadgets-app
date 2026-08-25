@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Calendar, ChevronDown } from 'lucide-react'
 
-export type DateRangePreset = 'all' | 'today' | 'yesterday' | 'last7' | 'custom'
+export type DateRangePreset = 'all' | 'today' | 'yesterday' | 'last7' | 'this_month' | 'custom'
 
 export interface ResolvedDateRange {
   start: Date | null
@@ -13,6 +13,7 @@ const presetOptions: { value: DateRangePreset; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'yesterday', label: 'Yesterday' },
   { value: 'last7', label: 'Last 7 Days' },
+  { value: 'this_month', label: 'This Month' },
   { value: 'custom', label: 'Custom' },
 ]
 
@@ -42,6 +43,10 @@ function resolveRange(preset: DateRangePreset, customFrom: string, customTo: str
     case 'last7': {
       const from = new Date(now)
       from.setDate(from.getDate() - 6)
+      return { start: startOfDay(from), end: endOfDay(now) }
+    }
+    case 'this_month': {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1)
       return { start: startOfDay(from), end: endOfDay(now) }
     }
     case 'custom':
@@ -76,12 +81,13 @@ function shortLabel(customFrom: string, customTo: string): string {
 }
 
 interface DateRangeFilterProps {
-  onChange: (range: ResolvedDateRange) => void
+  onChange: (range: ResolvedDateRange, label: string) => void
+  defaultPreset?: DateRangePreset
 }
 
-export default function DateRangeFilter({ onChange }: DateRangeFilterProps) {
+export default function DateRangeFilter({ onChange, defaultPreset = 'all' }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false)
-  const [preset, setPreset] = useState<DateRangePreset>('all')
+  const [preset, setPreset] = useState<DateRangePreset>(defaultPreset)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -97,16 +103,25 @@ export default function DateRangeFilter({ onChange }: DateRangeFilterProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
+  // Fires once on mount so the parent's initial filter state always matches
+  // what the trigger button displays, even when defaultPreset isn't 'all'.
+  useEffect(() => {
+    onChange(
+      resolveRange(defaultPreset, '', ''),
+      presetOptions.find((opt) => opt.value === defaultPreset)?.label ?? 'All Time',
+    )
+  }, [])
+
   function selectPreset(next: DateRangePreset) {
     setPreset(next)
     if (next === 'custom') return
     setOpen(false)
-    onChange(resolveRange(next, customFrom, customTo))
+    onChange(resolveRange(next, customFrom, customTo), presetOptions.find((opt) => opt.value === next)?.label ?? 'All Time')
   }
 
   function applyCustom() {
     setOpen(false)
-    onChange(resolveRange('custom', customFrom, customTo))
+    onChange(resolveRange('custom', customFrom, customTo), shortLabel(customFrom, customTo))
   }
 
   const triggerLabel =
