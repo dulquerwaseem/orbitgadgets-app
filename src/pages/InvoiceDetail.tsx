@@ -19,6 +19,8 @@ interface InvoiceDetailData {
   cgst_amount: number
   sgst_amount: number
   final_price: number
+  round_off: boolean
+  round_off_amount: number
   labor_charge: number
   labor_sac_code: string | null
   payment_status: string
@@ -450,6 +452,15 @@ export default function InvoiceDetail() {
                   <span>{formatCurrencyExact(invoice.sgst_amount)}</span>
                 </div>
               </>
+            )}
+            {invoice.round_off_amount !== 0 && (
+              <div className="flex justify-between text-slate-500">
+                <span>Round Off</span>
+                <span>
+                  {invoice.round_off_amount >= 0 ? '+' : '−'}
+                  {formatCurrencyExact(Math.abs(invoice.round_off_amount))}
+                </span>
+              </div>
             )}
             <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
               <span>Total</span>

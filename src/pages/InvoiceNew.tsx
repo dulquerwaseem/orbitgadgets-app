@@ -50,6 +50,7 @@ export default function InvoiceNew() {
   const [discount, setDiscount] = useState('')
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('unpaid')
   const [amountPaid, setAmountPaid] = useState('')
+  const [roundOff, setRoundOff] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,7 +69,9 @@ export default function InvoiceNew() {
   const taxableValue = itemsSubtotal + laborChargeNum - discountNum
   const cgstAmount = invoiceSeries === 'gst' ? Math.round(taxableValue * 0.09 * 100) / 100 : 0
   const sgstAmount = invoiceSeries === 'gst' ? Math.round(taxableValue * 0.09 * 100) / 100 : 0
-  const grandTotal = taxableValue + cgstAmount + sgstAmount
+  const preRoundTotal = taxableValue + cgstAmount + sgstAmount
+  const roundOffAmount = roundOff ? Math.round(preRoundTotal) - preRoundTotal : 0
+  const grandTotal = roundOff ? Math.round(preRoundTotal) : preRoundTotal
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((item) => item.key !== key))
@@ -101,6 +104,7 @@ export default function InvoiceNew() {
       p_labor_sac_code: laborSacCode.trim() || null,
       p_payment_status: paymentStatus,
       p_amount_paid: Number(amountPaid) || 0,
+      p_round_off: roundOff,
       p_items: items.map((item) => ({
         item_type: item.item_type,
         product_id: item.product_id,
@@ -281,6 +285,15 @@ export default function InvoiceNew() {
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={roundOff}
+                  onChange={(e) => setRoundOff(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                />
+                Round off total
+              </label>
             </div>
           </section>
 
@@ -347,6 +360,15 @@ export default function InvoiceNew() {
                     <span>{formatCurrencyExact(sgstAmount)}</span>
                   </div>
                 </>
+              )}
+              {roundOff && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Round Off</span>
+                  <span>
+                    {roundOffAmount >= 0 ? '+' : '−'}
+                    {formatCurrencyExact(Math.abs(roundOffAmount))}
+                  </span>
+                </div>
               )}
               <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
                 <span>Total</span>
