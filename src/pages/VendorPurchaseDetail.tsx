@@ -33,6 +33,7 @@ interface VendorPurchaseItemRow {
   brand: string | null
   category: string | null
   hsn_code: string | null
+  description: string | null
   quantity: number
   unit_price: number
   gst_rate: number
@@ -74,7 +75,7 @@ export default function VendorPurchaseDetail() {
         supabase
           .from('vendor_purchase_items')
           .select(
-            'id, item_type, item_name, brand, category, hsn_code, quantity, unit_price, gst_rate, taxable_value, gst_amount, total, serials, product_ids, spare_part_id',
+            'id, item_type, item_name, brand, category, hsn_code, description, quantity, unit_price, gst_rate, taxable_value, gst_amount, total, serials, product_ids, spare_part_id',
           )
           .eq('purchase_id', purchaseId)
           .order('created_at', { ascending: true }),
@@ -217,6 +218,9 @@ export default function VendorPurchaseDetail() {
                           {[item.brand, item.category].filter(Boolean).join(' · ')}
                         </span>
                       </p>
+                      {item.description && (
+                        <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+                      )}
                       {item.serials && item.serials.length > 0 && (
                         <p className="mt-0.5 text-xs text-slate-400">
                           Serials: {item.serials.join(', ')}
