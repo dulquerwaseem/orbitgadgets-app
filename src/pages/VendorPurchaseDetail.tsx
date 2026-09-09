@@ -20,6 +20,8 @@ interface VendorPurchaseData {
   total_taxable_value: number
   total_gst: number
   grand_total: number
+  round_off: boolean
+  round_off_amount: number
   notes: string | null
   vendors: { name: string; gstin: string | null; contact_phone: string | null; contact_email: string | null } | null
 }
@@ -262,6 +264,15 @@ export default function VendorPurchaseDetail() {
               <span>GST</span>
               <span>{formatCurrencyExact(purchase.total_gst)}</span>
             </div>
+            {purchase.round_off_amount !== 0 && (
+              <div className="flex justify-between text-slate-500">
+                <span>Round Off</span>
+                <span>
+                  {purchase.round_off_amount >= 0 ? '+' : '−'}
+                  {formatCurrencyExact(Math.abs(purchase.round_off_amount))}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
               <span>Grand Total</span>
               <span>{formatCurrencyExact(purchase.grand_total)}</span>

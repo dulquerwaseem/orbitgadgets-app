@@ -45,20 +45,26 @@ const itemTypeLabels: Record<PurchaseItemType, string> = {
   other: 'Other',
 }
 
-function AddPurchaseItemForm({ onAdd }: { onAdd: (item: DraftPurchaseItem) => void }) {
-  const [itemType, setItemType] = useState<PurchaseItemType>('product')
-  const [itemName, setItemName] = useState('')
-  const [brand, setBrand] = useState('')
-  const [category, setCategory] = useState('')
-  const [hsnCode, setHsnCode] = useState('')
-  const [description, setDescription] = useState('')
-  const [ram, setRam] = useState('')
-  const [storage, setStorage] = useState('')
-  const [condition, setCondition] = useState('')
-  const [unitPrice, setUnitPrice] = useState('')
-  const [quantity, setQuantity] = useState('1')
-  const [gstRate, setGstRate] = useState('18')
-  const [serialsText, setSerialsText] = useState('')
+interface AddPurchaseItemFormProps {
+  editingItem: DraftPurchaseItem | null
+  onSave: (item: DraftPurchaseItem) => void
+  onCancelEdit: () => void
+}
+
+function AddPurchaseItemForm({ editingItem, onSave, onCancelEdit }: AddPurchaseItemFormProps) {
+  const [itemType, setItemType] = useState<PurchaseItemType>(editingItem?.item_type ?? 'product')
+  const [itemName, setItemName] = useState(editingItem?.item_name ?? '')
+  const [brand, setBrand] = useState(editingItem?.brand ?? '')
+  const [category, setCategory] = useState(editingItem?.category ?? '')
+  const [hsnCode, setHsnCode] = useState(editingItem?.hsn_code ?? '')
+  const [description, setDescription] = useState(editingItem?.description ?? '')
+  const [ram, setRam] = useState(editingItem?.ram ?? '')
+  const [storage, setStorage] = useState(editingItem?.storage ?? '')
+  const [condition, setCondition] = useState(editingItem?.condition ?? '')
+  const [unitPrice, setUnitPrice] = useState(editingItem ? String(editingItem.unit_price) : '')
+  const [quantity, setQuantity] = useState(editingItem ? String(editingItem.quantity) : '1')
+  const [gstRate, setGstRate] = useState(editingItem ? String(editingItem.gst_rate) : '18')
+  const [serialsText, setSerialsText] = useState(editingItem?.serials.join(', ') ?? '')
 
   function reset() {
     setItemName('')
@@ -74,18 +80,18 @@ function AddPurchaseItemForm({ onAdd }: { onAdd: (item: DraftPurchaseItem) => vo
     setSerialsText('')
   }
 
-  const canAdd = itemName.trim() !== '' && unitPrice !== '' && Number(quantity) > 0
+  const canSave = itemName.trim() !== '' && unitPrice !== '' && Number(quantity) > 0
 
-  function handleAdd() {
-    if (!canAdd) return
+  function handleSave() {
+    if (!canSave) return
 
     const serials = serialsText
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
 
-    onAdd({
-      key: crypto.randomUUID(),
+    onSave({
+      key: editingItem?.key ?? crypto.randomUUID(),
       item_type: itemType,
       item_name: itemName.trim(),
       brand: brand.trim() || null,
@@ -100,11 +106,23 @@ function AddPurchaseItemForm({ onAdd }: { onAdd: (item: DraftPurchaseItem) => vo
       gst_rate: Number(gstRate) || 0,
       serials,
     })
-    reset()
+
+    if (!editingItem) {
+      reset()
+    }
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div
+      className={`rounded-xl border p-4 ${
+        editingItem ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50'
+      }`}
+    >
+      {editingItem && (
+        <p className="mb-3 text-xs font-medium text-slate-500">
+          Editing "{editingItem.item_name}"
+        </p>
+      )}
       <div className="mb-3 flex gap-1.5">
         {(Object.keys(itemTypeLabels) as PurchaseItemType[]).map((type) => (
           <button
@@ -246,14 +264,25 @@ function AddPurchaseItemForm({ onAdd }: { onAdd: (item: DraftPurchaseItem) => vo
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
           />
         </div>
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!canAdd}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-40"
-        >
-          Add Item
-        </button>
+        <div className="flex gap-2">
+          {editingItem && (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!canSave}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-40"
+          >
+            {editingItem ? 'Save Changes' : 'Add Item'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -271,9 +300,12 @@ export default function VendorPurchaseNew() {
   const [purchaseKind, setPurchaseKind] = useState<PurchaseKind>('stock_in_trade')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<DraftPurchaseItem[]>([])
+  const [editingItemKey, setEditingItemKey] = useState<string | null>(null)
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('paid')
   const [amountPaid, setAmountPaid] = useState('')
   const [amountPaidTouched, setAmountPaidTouched] = useState(false)
+  const [roundOff, setRoundOff] = useState(false)
+  const [vendorActualTotal, setVendorActualTotal] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -286,8 +318,22 @@ export default function VendorPurchaseNew() {
       .then(({ data }) => setVendors(data ?? []))
   }, [])
 
+  const editingItem = items.find((item) => item.key === editingItemKey) ?? null
+
   function removeItem(key: string) {
     setItems((prev) => prev.filter((item) => item.key !== key))
+    if (editingItemKey === key) setEditingItemKey(null)
+  }
+
+  function handleSaveItem(item: DraftPurchaseItem) {
+    setItems((prev) => {
+      const idx = prev.findIndex((i) => i.key === item.key)
+      if (idx === -1) return [...prev, item]
+      const next = [...prev]
+      next[idx] = item
+      return next
+    })
+    setEditingItemKey(null)
   }
 
   const totals = useMemo(() => {
@@ -301,7 +347,11 @@ export default function VendorPurchaseNew() {
     return { taxableValue, gstAmount, grandTotal: taxableValue + gstAmount }
   }, [items])
 
-  const amountPaidDisplay = amountPaidTouched ? amountPaid : totals.grandTotal.toFixed(2)
+  const roundOffApplied = roundOff && vendorActualTotal.trim() !== ''
+  const roundOffAmount = roundOffApplied ? Number(vendorActualTotal) - totals.grandTotal : 0
+  const displayGrandTotal = roundOffApplied ? Number(vendorActualTotal) : totals.grandTotal
+
+  const amountPaidDisplay = amountPaidTouched ? amountPaid : displayGrandTotal.toFixed(2)
 
   async function handleSubmit() {
     if (!membership) return
@@ -327,6 +377,8 @@ export default function VendorPurchaseNew() {
       p_notes: notes.trim() || null,
       p_payment_status: paymentStatus,
       p_amount_paid: Number(amountPaidDisplay) || 0,
+      p_round_off: roundOffApplied,
+      p_vendor_actual_total: roundOffApplied ? Number(vendorActualTotal) : null,
       p_items: items.map((item) => ({
         item_type: item.item_type,
         item_name: item.item_name,
@@ -484,6 +536,13 @@ export default function VendorPurchaseNew() {
                         <td className="px-4 py-2.5 text-right">
                           <button
                             type="button"
+                            onClick={() => setEditingItemKey(item.key)}
+                            className="mr-3 text-xs font-medium text-slate-500 hover:text-slate-900"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => removeItem(item.key)}
                             className="text-xs font-medium text-red-500 hover:text-red-700"
                           >
@@ -497,7 +556,12 @@ export default function VendorPurchaseNew() {
               </div>
             )}
 
-            <AddPurchaseItemForm onAdd={(item) => setItems((prev) => [...prev, item])} />
+            <AddPurchaseItemForm
+              key={editingItem?.key ?? 'new-item'}
+              editingItem={editingItem}
+              onSave={handleSaveItem}
+              onCancelEdit={() => setEditingItemKey(null)}
+            />
           </section>
         </div>
 
@@ -556,9 +620,42 @@ export default function VendorPurchaseNew() {
                 <span>GST</span>
                 <span>{formatCurrencyExact(totals.gstAmount)}</span>
               </div>
+              <label className="flex items-center gap-2 pt-1 text-sm font-medium text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={roundOff}
+                  onChange={(e) => setRoundOff(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                />
+                Round off to match vendor bill
+              </label>
+              {roundOff && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">
+                    Vendor's Actual Total
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={vendorActualTotal}
+                    onChange={(e) => setVendorActualTotal(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  />
+                </div>
+              )}
+              {roundOffApplied && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Round Off</span>
+                  <span>
+                    {roundOffAmount >= 0 ? '+' : '−'}
+                    {formatCurrencyExact(Math.abs(roundOffAmount))}
+                  </span>
+                </div>
+              )}
               <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
                 <span>Grand Total</span>
-                <span>{formatCurrencyExact(totals.grandTotal)}</span>
+                <span>{formatCurrencyExact(displayGrandTotal)}</span>
               </div>
             </div>
 
