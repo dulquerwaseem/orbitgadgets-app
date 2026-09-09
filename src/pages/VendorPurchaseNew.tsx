@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrencyExact } from '../lib/format'
+import { formatCurrencyExact, formatLabel } from '../lib/format'
 
 interface VendorOption {
   id: string
@@ -12,6 +12,9 @@ interface VendorOption {
 
 type PurchaseItemType = 'product' | 'spare' | 'other'
 type PurchaseKind = 'stock_in_trade' | 'office_expense' | 'capital_asset'
+type PaymentStatus = 'unpaid' | 'partial' | 'paid'
+
+const paymentStatusOptions: PaymentStatus[] = ['unpaid', 'partial', 'paid']
 
 interface DraftPurchaseItem {
   key: string
@@ -268,6 +271,9 @@ export default function VendorPurchaseNew() {
   const [purchaseKind, setPurchaseKind] = useState<PurchaseKind>('stock_in_trade')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<DraftPurchaseItem[]>([])
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('paid')
+  const [amountPaid, setAmountPaid] = useState('')
+  const [amountPaidTouched, setAmountPaidTouched] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -295,6 +301,8 @@ export default function VendorPurchaseNew() {
     return { taxableValue, gstAmount, grandTotal: taxableValue + gstAmount }
   }, [items])
 
+  const amountPaidDisplay = amountPaidTouched ? amountPaid : totals.grandTotal.toFixed(2)
+
   async function handleSubmit() {
     if (!membership) return
     setError(null)
@@ -317,6 +325,8 @@ export default function VendorPurchaseNew() {
       p_purchase_date: purchaseDate || null,
       p_purchase_kind: purchaseKind,
       p_notes: notes.trim() || null,
+      p_payment_status: paymentStatus,
+      p_amount_paid: Number(amountPaidDisplay) || 0,
       p_items: items.map((item) => ({
         item_type: item.item_type,
         item_name: item.item_name,
@@ -492,6 +502,49 @@ export default function VendorPurchaseNew() {
         </div>
 
         <div className="space-y-6">
+          <section className="rounded-2xl bg-white p-5 card-shadow">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Payment</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                  Payment Status
+                </label>
+                <select
+                  value={paymentStatus}
+                  onChange={(e) => {
+                    const next = e.target.value as PaymentStatus
+                    setPaymentStatus(next)
+                    if (next === 'unpaid') {
+                      setAmountPaid('0')
+                      setAmountPaidTouched(true)
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                >
+                  {paymentStatusOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {formatLabel(opt)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-600">Amount Paid</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountPaidDisplay}
+                  onChange={(e) => {
+                    setAmountPaid(e.target.value)
+                    setAmountPaidTouched(true)
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                />
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Summary</h2>
             <div className="space-y-2 text-sm">

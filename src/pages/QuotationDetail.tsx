@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
+import Modal from '../components/Modal'
+import CustomerPicker from '../components/CustomerPicker'
+import type { Customer } from '../components/CustomerPicker'
 
 interface QuotationDetailData {
   id: string
   quotation_number: string
   invoice_series: 'gst' | 'non_gst'
+  customer_id: string | null
   discount: number
   subtotal: number
   cgst_amount: number
@@ -21,7 +27,13 @@ interface QuotationDetailData {
   status: string
   converted_invoice_id: string | null
   created_at: string
-  customers: { name: string; phone: string; address: string | null; gst_number: string | null } | null
+  customers: {
+    id: string
+    name: string
+    phone: string
+    address: string | null
+    gst_number: string | null
+  } | null
   invoices: { id: string; invoice_number: string } | null
 }
 
@@ -39,6 +51,16 @@ interface QuotationItemRow {
   total_price: number
 }
 
+interface EditableItemDraft {
+  id: string
+  item_name: string
+  description: string
+  hsn_code: string
+  serial_imei: string
+  ram: string
+  storage: string
+}
+
 const statusStyles: Record<string, string> = {
   pending: 'bg-slate-100 text-slate-500',
   converted: 'bg-emerald-50 text-emerald-600',
@@ -47,12 +69,20 @@ const statusStyles: Record<string, string> = {
 export default function QuotationDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { membership } = useAuth()
+  const isAdmin = membership?.role === 'admin'
 
   const [quotation, setQuotation] = useState<QuotationDetailData | null>(null)
   const [items, setItems] = useState<QuotationItemRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
+
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null)
+  const [editItems, setEditItems] = useState<EditableItemDraft[]>([])
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   async function loadQuotation(quotationId: string) {
     setLoading(true)
@@ -62,7 +92,7 @@ export default function QuotationDetail() {
       await Promise.all([
         supabase
           .from('quotations')
-          .select('*, customers(name, phone, address, gst_number), invoices(id, invoice_number)')
+          .select('*, customers(id, name, phone, address, gst_number), invoices(id, invoice_number)')
           .eq('id', quotationId)
           .single(),
         supabase
@@ -118,6 +148,86 @@ export default function QuotationDetail() {
     navigate(`/invoices/${data.id}`)
   }
 
+  function openEditModal() {
+    if (!quotation) return
+    setEditError(null)
+    setEditCustomer(
+      quotation.customers
+        ? {
+            id: quotation.customers.id,
+            name: quotation.customers.name,
+            phone: quotation.customers.phone,
+            address: quotation.customers.address,
+            gst_number: quotation.customers.gst_number,
+          }
+        : null,
+    )
+    setEditItems(
+      items.map((item) => ({
+        id: item.id,
+        item_name: item.item_name,
+        description: item.description ?? '',
+        hsn_code: item.hsn_code ?? '',
+        serial_imei: item.serial_imei ?? '',
+        ram: item.ram ?? '',
+        storage: item.storage ?? '',
+      })),
+    )
+    setEditModalOpen(true)
+  }
+
+  function updateEditItem(itemId: string, patch: Partial<EditableItemDraft>) {
+    setEditItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, ...patch } : item)))
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!quotation) return
+
+    if (editItems.some((item) => item.item_name.trim() === '')) {
+      setEditError('Item name cannot be empty.')
+      return
+    }
+
+    setEditSaving(true)
+    setEditError(null)
+
+    const { error: quotationUpdateError } = await supabase
+      .from('quotations')
+      .update({ customer_id: editCustomer?.id ?? null })
+      .eq('id', quotation.id)
+
+    if (quotationUpdateError) {
+      setEditSaving(false)
+      setEditError(quotationUpdateError.message)
+      return
+    }
+
+    for (const item of editItems) {
+      const { error: itemUpdateError } = await supabase
+        .from('quotation_items')
+        .update({
+          item_name: item.item_name.trim(),
+          description: item.description.trim() || null,
+          hsn_code: item.hsn_code.trim() || null,
+          serial_imei: item.serial_imei.trim() || null,
+          ram: item.ram.trim() || null,
+          storage: item.storage.trim() || null,
+        })
+        .eq('id', item.id)
+
+      if (itemUpdateError) {
+        setEditSaving(false)
+        setEditError(itemUpdateError.message)
+        return
+      }
+    }
+
+    setEditSaving(false)
+    setEditModalOpen(false)
+    void loadQuotation(quotation.id)
+  }
+
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading quotation…</p>
   }
@@ -149,6 +259,14 @@ export default function QuotationDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isAdmin && quotation.status !== 'converted' && (
+            <button
+              onClick={openEditModal}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+            >
+              Edit Quotation
+            </button>
+          )}
           {quotation.status !== 'converted' && (
             <button
               onClick={() => void handleConvert()}
@@ -227,6 +345,7 @@ export default function QuotationDetail() {
             <thead>
               <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">HSN/SAC</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
                 <th className="px-4 py-2.5 text-right">Total</th>
@@ -243,19 +362,28 @@ export default function QuotationDetail() {
                   <td className="border-r border-slate-200 px-4 py-2.5">
                     <p className="font-medium text-slate-900">{item.item_name}</p>
                     <p className="text-xs text-slate-400">
-                      {formatLabel(item.item_type)}
-                      {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
-                      {item.ram ? ` · ${item.ram}` : ''}
-                      {item.storage ? ` · ${item.storage}` : ''}
+                      <span className="no-print">
+                        {[
+                          formatLabel(item.item_type),
+                          item.serial_imei && `IMEI ${item.serial_imei}`,
+                          item.ram,
+                          item.storage,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      <span className="hidden print:inline">
+                        {[item.serial_imei && `IMEI ${item.serial_imei}`, item.ram, item.storage]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     </p>
-                    {item.hsn_code && (
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
-                      </p>
-                    )}
                     {item.description && (
                       <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
                     )}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {item.hsn_code ?? '—'}
                   </td>
                   <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
                     {item.quantity}
@@ -319,6 +447,101 @@ export default function QuotationDetail() {
 
         <PrintFooter note="This quotation is valid until the date noted above." />
       </div>
+
+      <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Quotation">
+        <form onSubmit={handleSaveEdit} className="space-y-5">
+          <p className="text-sm text-slate-500">
+            Only non-financial details can be changed here — customer, and per-item name,
+            description, HSN/SAC, and serial/spec. Price, quantity, tax, and totals are never
+            touched by this form.
+          </p>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Customer</label>
+            <CustomerPicker value={editCustomer} onChange={setEditCustomer} />
+          </div>
+
+          <div className="space-y-4">
+            {editItems.map((item, index) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Item {index + 1}
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Item name"
+                    value={item.item_name}
+                    onChange={(e) => updateEditItem(item.id, { item_name: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  />
+                  <textarea
+                    placeholder="Description (optional)"
+                    rows={2}
+                    value={item.description}
+                    onChange={(e) => updateEditItem(item.id, { description: e.target.value })}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="HSN/SAC code"
+                      value={item.hsn_code}
+                      onChange={(e) => updateEditItem(item.id, { hsn_code: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Serial/IMEI"
+                      value={item.serial_imei}
+                      onChange={(e) => updateEditItem(item.id, { serial_imei: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="RAM"
+                      value={item.ram}
+                      onChange={(e) => updateEditItem(item.id, { ram: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Storage"
+                      value={item.storage}
+                      onChange={(e) => updateEditItem(item.id, { storage: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {editError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {editSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

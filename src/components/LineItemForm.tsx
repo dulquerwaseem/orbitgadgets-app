@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export type LineItemType = 'product' | 'spare' | 'service' | 'custom'
+export type WarrantyUnit = 'days' | 'months' | 'years'
 
 export interface DraftItem {
   key: string
@@ -18,7 +19,14 @@ export interface DraftItem {
   unit_price: number
   cost_price: number | null
   warranty_days: number | null
+  warranty_unit: WarrantyUnit
   warranty_notes: string | null
+}
+
+const warrantyUnitLabels: Record<WarrantyUnit, string> = {
+  days: 'Days',
+  months: 'Months',
+  years: 'Years',
 }
 
 interface ProductOption {
@@ -83,6 +91,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
   const [description, setDescription] = useState('')
   const [hsnCode, setHsnCode] = useState('')
   const [warrantyDays, setWarrantyDays] = useState('')
+  const [warrantyUnit, setWarrantyUnit] = useState<WarrantyUnit>('days')
   const [warrantyNotes, setWarrantyNotes] = useState('')
 
   async function loadOptions() {
@@ -126,6 +135,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
     setDescription('')
     setHsnCode('')
     setWarrantyDays('')
+    setWarrantyUnit('days')
     setWarrantyNotes('')
   }
 
@@ -224,6 +234,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
         unit_price: Number(unitPrice),
         cost_price: selectedProduct.purchase_price,
         warranty_days: parsedWarrantyDays,
+        warranty_unit: warrantyUnit,
         warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'product' && productEntryMode === 'manual') {
@@ -244,6 +255,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
         unit_price: Number(unitPrice),
         cost_price: null,
         warranty_days: parsedWarrantyDays,
+        warranty_unit: warrantyUnit,
         warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'spare' && sparePartEntryMode === 'search' && selectedSparePart) {
@@ -262,6 +274,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
         unit_price: Number(unitPrice),
         cost_price: selectedSparePart.purchase_price,
         warranty_days: parsedWarrantyDays,
+        warranty_unit: warrantyUnit,
         warranty_notes: trimmedWarrantyNotes,
       }
     } else if (itemType === 'spare' && sparePartEntryMode === 'manual') {
@@ -280,6 +293,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
         unit_price: Number(unitPrice),
         cost_price: null,
         warranty_days: parsedWarrantyDays,
+        warranty_unit: warrantyUnit,
         warranty_notes: trimmedWarrantyNotes,
       }
     } else {
@@ -298,6 +312,7 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
         unit_price: Number(unitPrice),
         cost_price: null,
         warranty_days: parsedWarrantyDays,
+        warranty_unit: warrantyUnit,
         warranty_notes: trimmedWarrantyNotes,
       }
     }
@@ -570,16 +585,27 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
       </div>
 
       {showWarranty && (
-        <div className="mb-3 grid grid-cols-[auto_1fr] gap-2">
+        <div className="mb-3 grid grid-cols-[auto_auto_1fr] gap-2">
           <input
             type="number"
             min="0"
             step="1"
-            placeholder="Warranty (days)"
+            placeholder="Warranty"
             value={warrantyDays}
             onChange={(e) => setWarrantyDays(e.target.value)}
-            className="w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+            className="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
           />
+          <select
+            value={warrantyUnit}
+            onChange={(e) => setWarrantyUnit(e.target.value as WarrantyUnit)}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          >
+            {(Object.keys(warrantyUnitLabels) as WarrantyUnit[]).map((unit) => (
+              <option key={unit} value={unit}>
+                {warrantyUnitLabels[unit]}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             placeholder="Warranty notes (optional, e.g. parts only, not physical damage)"

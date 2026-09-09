@@ -175,7 +175,7 @@ export default function CreditNoteDetail() {
                 >
                   <td className="border-r border-slate-200 px-4 py-2.5">
                     <p className="font-medium text-slate-900">{item.item_name}</p>
-                    <p className="text-xs text-slate-400">{formatLabel(item.item_type)}</p>
+                    <p className="no-print text-xs text-slate-400">{formatLabel(item.item_type)}</p>
                   </td>
                   <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
                     {item.quantity_returned}

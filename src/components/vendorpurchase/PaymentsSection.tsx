@@ -15,16 +15,18 @@ const modeOptions = ['cash', 'bank_transfer', 'upi', 'cheque', 'other']
 
 interface PaymentsSectionProps {
   purchaseId: string
-  vendorId: string
   grandTotal: number
+  amountPaid: number
   isAdmin: boolean
+  onPaymentRecorded: () => void
 }
 
 export default function PaymentsSection({
   purchaseId,
-  vendorId,
   grandTotal,
+  amountPaid,
   isAdmin,
+  onPaymentRecorded,
 }: PaymentsSectionProps) {
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,8 +57,7 @@ export default function PaymentsSection({
     void loadPayments()
   }, [purchaseId])
 
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
-  const balance = grandTotal - totalPaid
+  const balance = grandTotal - amountPaid
 
   function resetForm() {
     setAmount('')
@@ -74,14 +75,13 @@ export default function PaymentsSection({
     setSaving(true)
     setError(null)
 
-    const { error } = await supabase.from('vendor_purchase_payments').insert({
-      purchase_id: purchaseId,
-      vendor_id: vendorId,
-      amount: Number(amount),
-      payment_date: paymentDate,
-      mode,
-      reference_no: referenceNo.trim() || null,
-      notes: notes.trim() || null,
+    const { error } = await supabase.rpc('record_vendor_purchase_payment', {
+      p_purchase_id: purchaseId,
+      p_amount: Number(amount),
+      p_payment_date: paymentDate,
+      p_mode: mode,
+      p_reference_no: referenceNo.trim() || null,
+      p_notes: notes.trim() || null,
     })
 
     setSaving(false)
@@ -94,13 +94,14 @@ export default function PaymentsSection({
     resetForm()
     setShowForm(false)
     void loadPayments()
+    onPaymentRecorded()
   }
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between text-sm">
         <span className="text-slate-500">
-          Paid {formatCurrencyExact(totalPaid)} of {formatCurrencyExact(grandTotal)}
+          Paid {formatCurrencyExact(amountPaid)} of {formatCurrencyExact(grandTotal)}
         </span>
         <span className={`font-semibold ${balance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
           Balance: {formatCurrencyExact(balance)}

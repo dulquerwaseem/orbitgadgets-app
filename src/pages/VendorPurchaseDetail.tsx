@@ -15,6 +15,7 @@ interface VendorPurchaseData {
   supplier_invoice_no: string | null
   purchase_date: string
   payment_status: string
+  amount_paid: number
   purchase_kind: string | null
   total_taxable_value: number
   total_gst: number
@@ -184,6 +185,7 @@ export default function VendorPurchaseDetail() {
             <thead>
               <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">HSN</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">GST</th>
@@ -204,13 +206,15 @@ export default function VendorPurchaseDetail() {
                     <td className="border-r border-slate-200 px-4 py-2.5">
                       <p className="font-medium text-slate-900">{item.item_name}</p>
                       <p className="text-xs text-slate-400">
-                        {formatLabel(item.item_type)}
-                        {item.brand ? ` · ${item.brand}` : ''}
-                        {item.category ? ` · ${item.category}` : ''}
+                        <span className="no-print">
+                          {[formatLabel(item.item_type), item.brand, item.category]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                        <span className="hidden print:inline">
+                          {[item.brand, item.category].filter(Boolean).join(' · ')}
+                        </span>
                       </p>
-                      {item.hsn_code && (
-                        <p className="mt-0.5 text-xs text-slate-400">HSN: {item.hsn_code}</p>
-                      )}
                       {item.serials && item.serials.length > 0 && (
                         <p className="mt-0.5 text-xs text-slate-400">
                           Serials: {item.serials.join(', ')}
@@ -225,6 +229,9 @@ export default function VendorPurchaseDetail() {
                             : 'Restocked'}
                         </p>
                       )}
+                    </td>
+                    <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                      {item.hsn_code ?? '—'}
                     </td>
                     <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
                       {item.quantity}
@@ -269,9 +276,10 @@ export default function VendorPurchaseDetail() {
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Payments</h2>
         <PaymentsSection
           purchaseId={purchase.id}
-          vendorId={purchase.vendor_id}
           grandTotal={purchase.grand_total}
+          amountPaid={purchase.amount_paid}
           isAdmin={isAdmin}
+          onPaymentRecorded={() => id && void loadPurchase(id)}
         />
       </div>
 

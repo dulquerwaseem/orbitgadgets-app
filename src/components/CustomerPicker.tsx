@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -33,6 +33,14 @@ export default function CustomerPicker({ value, onChange }: CustomerPickerProps)
   const [newCustomer, setNewCustomer] = useState<NewCustomerForm>(emptyNewCustomer)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const phoneInputRef = useRef<HTMLInputElement>(null)
+  const [focusField, setFocusField] = useState<'name' | 'phone'>('name')
+
+  useEffect(() => {
+    if (!showAddForm) return
+    ;(focusField === 'phone' ? phoneInputRef : nameInputRef).current?.focus()
+  }, [showAddForm, focusField])
 
   async function loadCustomers() {
     const { data } = await supabase
@@ -86,6 +94,12 @@ export default function CustomerPicker({ value, onChange }: CustomerPickerProps)
     onChange(data)
   }
 
+  function handleCreateNewFromSearch() {
+    setNewCustomer({ ...emptyNewCustomer, name: search.trim() })
+    setFocusField('phone')
+    setShowAddForm(true)
+  }
+
   if (value) {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -136,18 +150,37 @@ export default function CustomerPicker({ value, onChange }: CustomerPickerProps)
         </div>
       )}
 
+      {search.trim() && filtered.length === 0 && !showAddForm && (
+        <div className="mt-2 overflow-hidden rounded-xl border border-slate-100">
+          <button
+            type="button"
+            onClick={handleCreateNewFromSearch}
+            className="flex w-full items-center gap-1 px-4 py-2.5 text-left text-sm transition-colors hover:bg-slate-50"
+          >
+            <span className="font-medium text-slate-600">+ Create new customer:</span>
+            <span className="font-semibold text-slate-900">"{search.trim()}"</span>
+          </button>
+        </div>
+      )}
+
       {!showAddForm ? (
-        <button
-          type="button"
-          onClick={() => setShowAddForm(true)}
-          className="mt-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-          + Add new customer
-        </button>
+        !search.trim() && (
+          <button
+            type="button"
+            onClick={() => {
+              setFocusField('name')
+              setShowAddForm(true)
+            }}
+            className="mt-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+          >
+            + Add new customer
+          </button>
+        )
       ) : (
         <form onSubmit={handleAddCustomer} className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="grid grid-cols-2 gap-3">
             <input
+              ref={nameInputRef}
               type="text"
               required
               placeholder="Name"
@@ -156,6 +189,7 @@ export default function CustomerPicker({ value, onChange }: CustomerPickerProps)
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
             />
             <input
+              ref={phoneInputRef}
               type="tel"
               required
               placeholder="Phone"

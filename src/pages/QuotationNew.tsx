@@ -177,11 +177,9 @@ export default function QuotationNew() {
 
             <LineItemForm onAdd={(item) => setItems((prev) => [...prev, item])} />
           </section>
-        </div>
 
-        <div className="space-y-6">
           <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Charges</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Additional Charges</h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -220,7 +218,9 @@ export default function QuotationNew() {
               </div>
             </div>
           </section>
+        </div>
 
+        <div className="space-y-6 lg:sticky lg:top-8 lg:self-start">
           <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Details</h2>
             <div className="space-y-3">

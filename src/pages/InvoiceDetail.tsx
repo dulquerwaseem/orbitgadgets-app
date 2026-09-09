@@ -2,16 +2,21 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
 import InvoicePaymentsSection from '../components/invoice/InvoicePaymentsSection'
 import Modal from '../components/Modal'
+import CustomerPicker from '../components/CustomerPicker'
+import type { Customer } from '../components/CustomerPicker'
+import type { WarrantyUnit } from '../components/LineItemForm'
 
 interface InvoiceDetailData {
   id: string
   invoice_number: string
   invoice_series: 'gst' | 'non_gst'
+  customer_id: string | null
   customer_gst: string | null
   eway_bill: string | null
   discount: number
@@ -30,8 +35,27 @@ interface InvoiceDetailData {
   void: boolean
   void_reason: string | null
   created_at: string
-  customers: { name: string; phone: string; address: string | null; gst_number: string | null } | null
+  customers: {
+    id: string
+    name: string
+    phone: string
+    address: string | null
+    gst_number: string | null
+  } | null
   job_sheets: { job_number: string } | null
+}
+
+interface EditableItemDraft {
+  id: string
+  item_name: string
+  description: string
+  hsn_code: string
+  serial_imei: string
+  ram: string
+  storage: string
+  warranty_days: string
+  warranty_unit: WarrantyUnit
+  warranty_notes: string
 }
 
 interface InvoiceItemRow {
@@ -47,12 +71,25 @@ interface InvoiceItemRow {
   unit_price: number
   total_price: number
   warranty_days: number | null
+  warranty_unit: WarrantyUnit
   warranty_notes: string | null
 }
 
-function warrantyUntil(invoiceCreatedAt: string, days: number): string {
+const warrantyUnitLabels: Record<WarrantyUnit, string> = {
+  days: 'day',
+  months: 'month',
+  years: 'year',
+}
+
+function warrantyUntil(invoiceCreatedAt: string, amount: number, unit: WarrantyUnit): string {
   const until = new Date(invoiceCreatedAt)
-  until.setDate(until.getDate() + days)
+  if (unit === 'months') {
+    until.setMonth(until.getMonth() + amount)
+  } else if (unit === 'years') {
+    until.setFullYear(until.getFullYear() + amount)
+  } else {
+    until.setDate(until.getDate() + amount)
+  }
   return formatDate(until.toISOString())
 }
 
@@ -72,6 +109,8 @@ const paymentStatusStyles: Record<string, string> = {
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { membership } = useAuth()
+  const isAdmin = membership?.role === 'admin'
 
   const [invoice, setInvoice] = useState<InvoiceDetailData | null>(null)
   const [items, setItems] = useState<InvoiceItemRow[]>([])
@@ -87,6 +126,12 @@ export default function InvoiceDetail() {
   const [voiding, setVoiding] = useState(false)
   const [voidError, setVoidError] = useState<string | null>(null)
 
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null)
+  const [editItems, setEditItems] = useState<EditableItemDraft[]>([])
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   async function loadInvoice(invoiceId: string) {
     setLoading(true)
     setError(null)
@@ -100,14 +145,14 @@ export default function InvoiceDetail() {
       supabase
         .from('invoices')
         .select(
-          '*, customers(name, phone, address, gst_number), job_sheets!invoices_job_sheet_id_fkey(job_number)',
+          '*, customers(id, name, phone, address, gst_number), job_sheets!invoices_job_sheet_id_fkey(job_number)',
         )
         .eq('id', invoiceId)
         .single(),
       supabase
         .from('invoice_items')
         .select(
-          'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price, warranty_days, warranty_notes',
+          'id, item_type, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, total_price, warranty_days, warranty_unit, warranty_notes',
         )
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: true }),
@@ -217,6 +262,99 @@ export default function InvoiceDetail() {
     void loadInvoice(id)
   }
 
+  function openEditModal() {
+    if (!invoice) return
+    setEditError(null)
+    setEditCustomer(
+      invoice.customers
+        ? {
+            id: invoice.customers.id,
+            name: invoice.customers.name,
+            phone: invoice.customers.phone,
+            address: invoice.customers.address,
+            gst_number: invoice.customers.gst_number,
+          }
+        : null,
+    )
+    setEditItems(
+      items.map((item) => ({
+        id: item.id,
+        item_name: item.item_name,
+        description: item.description ?? '',
+        hsn_code: item.hsn_code ?? '',
+        serial_imei: item.serial_imei ?? '',
+        ram: item.ram ?? '',
+        storage: item.storage ?? '',
+        warranty_days: item.warranty_days != null ? String(item.warranty_days) : '',
+        warranty_unit: item.warranty_unit,
+        warranty_notes: item.warranty_notes ?? '',
+      })),
+    )
+    setEditModalOpen(true)
+  }
+
+  function updateEditItem(itemId: string, patch: Partial<EditableItemDraft>) {
+    setEditItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, ...patch } : item)))
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!invoice) return
+
+    if (editItems.some((item) => item.item_name.trim() === '')) {
+      setEditError('Item name cannot be empty.')
+      return
+    }
+
+    setEditSaving(true)
+    setEditError(null)
+
+    const invoiceUpdate: { customer_id: string | null; customer_gst?: string | null } = {
+      customer_id: editCustomer?.id ?? null,
+    }
+    if (invoice.invoice_series === 'gst') {
+      invoiceUpdate.customer_gst = editCustomer?.gst_number ?? null
+    }
+
+    const { error: invoiceUpdateError } = await supabase
+      .from('invoices')
+      .update(invoiceUpdate)
+      .eq('id', invoice.id)
+
+    if (invoiceUpdateError) {
+      setEditSaving(false)
+      setEditError(invoiceUpdateError.message)
+      return
+    }
+
+    for (const item of editItems) {
+      const { error: itemUpdateError } = await supabase
+        .from('invoice_items')
+        .update({
+          item_name: item.item_name.trim(),
+          description: item.description.trim() || null,
+          hsn_code: item.hsn_code.trim() || null,
+          serial_imei: item.serial_imei.trim() || null,
+          ram: item.ram.trim() || null,
+          storage: item.storage.trim() || null,
+          warranty_days: item.warranty_days.trim() ? Number(item.warranty_days) : null,
+          warranty_unit: item.warranty_unit,
+          warranty_notes: item.warranty_notes.trim() || null,
+        })
+        .eq('id', item.id)
+
+      if (itemUpdateError) {
+        setEditSaving(false)
+        setEditError(itemUpdateError.message)
+        return
+      }
+    }
+
+    setEditSaving(false)
+    setEditModalOpen(false)
+    void loadInvoice(invoice.id)
+  }
+
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoice…</p>
   }
@@ -253,6 +391,14 @@ export default function InvoiceDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isAdmin && !invoice.superseded && !invoice.void && (
+            <button
+              onClick={openEditModal}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+            >
+              Edit Invoice
+            </button>
+          )}
           {!invoice.superseded && !invoice.void && creditNotes.length === 0 && paymentsCount === 0 && (
             <button
               onClick={openVoidModal}
@@ -363,6 +509,7 @@ export default function InvoiceDetail() {
             <thead>
               <tr className="border-b border-slate-300 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <th className="border-r border-slate-300 px-4 py-2.5">Item</th>
+                <th className="border-r border-slate-300 px-4 py-2.5">HSN/SAC</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Qty</th>
                 <th className="border-r border-slate-300 px-4 py-2.5">Unit Price</th>
                 <th className="px-4 py-2.5 text-right">Total</th>
@@ -379,26 +526,36 @@ export default function InvoiceDetail() {
                   <td className="border-r border-slate-200 px-4 py-2.5">
                     <p className="font-medium text-slate-900">{item.item_name}</p>
                     <p className="text-xs text-slate-400">
-                      {formatLabel(item.item_type)}
-                      {item.serial_imei ? ` · IMEI ${item.serial_imei}` : ''}
-                      {item.ram ? ` · ${item.ram}` : ''}
-                      {item.storage ? ` · ${item.storage}` : ''}
+                      <span className="no-print">
+                        {[
+                          formatLabel(item.item_type),
+                          item.serial_imei && `IMEI ${item.serial_imei}`,
+                          item.ram,
+                          item.storage,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      <span className="hidden print:inline">
+                        {[item.serial_imei && `IMEI ${item.serial_imei}`, item.ram, item.storage]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     </p>
-                    {item.hsn_code && (
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {item.item_type === 'service' ? 'SAC' : 'HSN'}: {item.hsn_code}
-                      </p>
-                    )}
                     {item.description && (
                       <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
                     )}
                     {item.warranty_days != null && (
                       <p className="mt-0.5 text-xs text-slate-500">
-                        Warranty: {item.warranty_days} day{item.warranty_days === 1 ? '' : 's'} (until{' '}
-                        {warrantyUntil(invoice.created_at, item.warranty_days)})
+                        Warranty: {item.warranty_days} {warrantyUnitLabels[item.warranty_unit]}
+                        {item.warranty_days === 1 ? '' : 's'} (until{' '}
+                        {warrantyUntil(invoice.created_at, item.warranty_days, item.warranty_unit)})
                         {item.warranty_notes ? ` — ${item.warranty_notes}` : ''}
                       </p>
                     )}
+                  </td>
+                  <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
+                    {item.hsn_code ?? '—'}
                   </td>
                   <td className="border-r border-slate-200 px-4 py-2.5 text-slate-500">
                     {item.quantity}
@@ -552,6 +709,132 @@ export default function InvoiceDetail() {
               className="rounded-xl bg-red-600 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {voiding ? 'Voiding…' : 'Void Invoice'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Invoice">
+        <form onSubmit={handleSaveEdit} className="space-y-5">
+          <p className="text-sm text-slate-500">
+            Only non-financial details can be changed here — customer, and per-item name,
+            description, HSN/SAC, serial/spec, and warranty. Price, quantity, tax, and totals
+            are never touched by this form.
+          </p>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Customer</label>
+            <CustomerPicker value={editCustomer} onChange={setEditCustomer} />
+          </div>
+
+          <div className="space-y-4">
+            {editItems.map((item, index) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Item {index + 1}
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Item name"
+                    value={item.item_name}
+                    onChange={(e) => updateEditItem(item.id, { item_name: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  />
+                  <textarea
+                    placeholder="Description (optional)"
+                    rows={2}
+                    value={item.description}
+                    onChange={(e) => updateEditItem(item.id, { description: e.target.value })}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="HSN/SAC code"
+                      value={item.hsn_code}
+                      onChange={(e) => updateEditItem(item.id, { hsn_code: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Serial/IMEI"
+                      value={item.serial_imei}
+                      onChange={(e) => updateEditItem(item.id, { serial_imei: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="RAM"
+                      value={item.ram}
+                      onChange={(e) => updateEditItem(item.id, { ram: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Storage"
+                      value={item.storage}
+                      onChange={(e) => updateEditItem(item.id, { storage: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div className="grid grid-cols-[auto_auto_1fr] gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="Warranty"
+                      value={item.warranty_days}
+                      onChange={(e) => updateEditItem(item.id, { warranty_days: e.target.value })}
+                      className="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                    <select
+                      value={item.warranty_unit}
+                      onChange={(e) =>
+                        updateEditItem(item.id, { warranty_unit: e.target.value as WarrantyUnit })
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    >
+                      {(['days', 'months', 'years'] as WarrantyUnit[]).map((unit) => (
+                        <option key={unit} value={unit}>
+                          {formatLabel(unit)}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Warranty notes"
+                      value={item.warranty_notes}
+                      onChange={(e) => updateEditItem(item.id, { warranty_notes: e.target.value })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {editError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {editSaving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         </form>

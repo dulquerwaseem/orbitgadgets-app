@@ -48,8 +48,9 @@ export default function InvoiceNew() {
   const [laborCharge, setLaborCharge] = useState('')
   const [laborSacCode, setLaborSacCode] = useState('')
   const [discount, setDiscount] = useState('')
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('unpaid')
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('paid')
   const [amountPaid, setAmountPaid] = useState('')
+  const [amountPaidTouched, setAmountPaidTouched] = useState(false)
   const [roundOff, setRoundOff] = useState(false)
 
   const [saving, setSaving] = useState(false)
@@ -72,6 +73,7 @@ export default function InvoiceNew() {
   const preRoundTotal = taxableValue + cgstAmount + sgstAmount
   const roundOffAmount = roundOff ? Math.round(preRoundTotal) - preRoundTotal : 0
   const grandTotal = roundOff ? Math.round(preRoundTotal) : preRoundTotal
+  const amountPaidDisplay = amountPaidTouched ? amountPaid : grandTotal.toFixed(2)
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((item) => item.key !== key))
@@ -103,7 +105,7 @@ export default function InvoiceNew() {
       p_labor_charge: laborChargeNum,
       p_labor_sac_code: laborSacCode.trim() || null,
       p_payment_status: paymentStatus,
-      p_amount_paid: Number(amountPaid) || 0,
+      p_amount_paid: Number(amountPaidDisplay) || 0,
       p_round_off: roundOff,
       p_items: items.map((item) => ({
         item_type: item.item_type,
@@ -119,6 +121,7 @@ export default function InvoiceNew() {
         unit_price: item.unit_price,
         cost_price: item.cost_price,
         warranty_days: item.warranty_days,
+        warranty_unit: item.warranty_unit,
         warranty_notes: item.warranty_notes,
       })),
     })
@@ -244,11 +247,9 @@ export default function InvoiceNew() {
 
             <LineItemForm onAdd={(item) => setItems((prev) => [...prev, item])} showWarranty />
           </section>
-        </div>
 
-        <div className="space-y-6">
           <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Charges</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Additional Charges</h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -296,7 +297,9 @@ export default function InvoiceNew() {
               </label>
             </div>
           </section>
+        </div>
 
+        <div className="space-y-6 lg:sticky lg:top-8 lg:self-start">
           <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Payment</h2>
             <div className="space-y-3">
@@ -306,7 +309,14 @@ export default function InvoiceNew() {
                 </label>
                 <select
                   value={paymentStatus}
-                  onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}
+                  onChange={(e) => {
+                    const next = e.target.value as PaymentStatus
+                    setPaymentStatus(next)
+                    if (next === 'unpaid') {
+                      setAmountPaid('0')
+                      setAmountPaidTouched(true)
+                    }
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
                 >
                   {paymentStatusOptions.map((opt) => (
@@ -322,8 +332,11 @@ export default function InvoiceNew() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
+                  value={amountPaidDisplay}
+                  onChange={(e) => {
+                    setAmountPaid(e.target.value)
+                    setAmountPaidTouched(true)
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
                 />
               </div>
