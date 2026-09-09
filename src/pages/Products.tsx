@@ -56,6 +56,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [showSold, setShowSold] = useState(false)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -85,13 +86,12 @@ export default function Products() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return products
     return products.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.category ?? '').toLowerCase().includes(q),
+        (showSold || p.status === 'available') &&
+        (!q || p.name.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q)),
     )
-  }, [products, search])
+  }, [products, search, showSold])
 
   function openAddModal() {
     setEditingId(null)
@@ -174,6 +174,15 @@ export default function Products() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-64 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
           />
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={showSold}
+              onChange={(e) => setShowSold(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+            />
+            Show sold items
+          </label>
           <button
             onClick={openAddModal}
             className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
@@ -192,7 +201,7 @@ export default function Products() {
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading products…</p>
         ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            {products.length === 0 ? 'No products yet. Add your first one.' : 'No products match your search.'}
+            {products.length === 0 ? 'No products yet. Add your first one.' : 'No products match these filters.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">

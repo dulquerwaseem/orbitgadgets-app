@@ -36,6 +36,7 @@ interface ProductOption {
   selling_price: number | null
   purchase_price: number | null
   hsn_code: string | null
+  description: string | null
   serial_imei: string | null
   ram: string | null
   storage: string | null
@@ -48,6 +49,7 @@ interface SparePartOption {
   selling_price: number | null
   purchase_price: number | null
   hsn_code: string | null
+  description: string | null
   quantity: number
 }
 
@@ -98,13 +100,15 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
     const [{ data: productData }, { data: spareData }] = await Promise.all([
       supabase
         .from('products')
-        .select('id, name, brand, selling_price, purchase_price, hsn_code, serial_imei, ram, storage')
+        .select(
+          'id, name, brand, selling_price, purchase_price, hsn_code, description, serial_imei, ram, storage',
+        )
         .or('status.eq.available,status.is.null')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
         .from('spare_parts')
-        .select('id, name, part_number, selling_price, purchase_price, hsn_code, quantity')
+        .select('id, name, part_number, selling_price, purchase_price, hsn_code, description, quantity')
         .order('created_at', { ascending: false })
         .limit(500),
     ])
@@ -190,12 +194,14 @@ export default function LineItemForm({ onAdd, showWarranty = false }: LineItemFo
     setSelectedProduct(p)
     setUnitPrice(p.selling_price?.toString() ?? '')
     setHsnCode(p.hsn_code ?? '')
+    setDescription(p.description ?? '')
   }
 
   function selectSparePart(p: SparePartOption) {
     setSelectedSparePart(p)
     setUnitPrice(p.selling_price?.toString() ?? '')
     setHsnCode(p.hsn_code ?? '')
+    setDescription(p.description ?? '')
   }
 
   const canAdd =
