@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
 import type { ResolvedDateRange } from '../components/DateRangeFilter'
+import SeriesFilter from '../components/SeriesFilter'
+import type { SeriesFilterValue } from '../components/SeriesFilter'
 
 interface QuotationRow {
   id: string
@@ -29,6 +31,7 @@ export default function Quotations() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
+  const [seriesFilter, setSeriesFilter] = useState<SeriesFilterValue>('all')
 
   async function loadQuotations() {
     setLoading(true)
@@ -52,8 +55,13 @@ export default function Quotations() {
   }, [customerId])
 
   const filtered = useMemo(
-    () => quotations.filter((quotation) => isWithinDateRange(quotation.created_at, dateRange)),
-    [quotations, dateRange],
+    () =>
+      quotations.filter(
+        (quotation) =>
+          isWithinDateRange(quotation.created_at, dateRange) &&
+          (seriesFilter === 'all' || quotation.invoice_series === seriesFilter),
+      ),
+    [quotations, dateRange, seriesFilter],
   )
 
   return (
@@ -67,6 +75,7 @@ export default function Quotations() {
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter onChange={setDateRange} />
+          <SeriesFilter value={seriesFilter} onChange={setSeriesFilter} />
           <Link
             to="/quotations/new"
             className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
@@ -96,7 +105,7 @@ export default function Quotations() {
           <p className="px-6 py-10 text-center text-sm text-slate-400">
             {quotations.length === 0
               ? 'No quotations yet. Create your first one.'
-              : 'No quotations match this date range.'}
+              : 'No quotations match these filters.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">

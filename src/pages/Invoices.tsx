@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import DateRangeFilter, { isWithinDateRange } from '../components/DateRangeFilter'
 import type { ResolvedDateRange } from '../components/DateRangeFilter'
+import SeriesFilter from '../components/SeriesFilter'
+import type { SeriesFilterValue } from '../components/SeriesFilter'
 import type { GstInvoiceExportRow, GstInvoiceItemExportRow } from '../lib/exportGstSales'
 
 interface InvoiceRow {
@@ -31,6 +33,7 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<ResolvedDateRange>({ start: null, end: null })
+  const [seriesFilter, setSeriesFilter] = useState<SeriesFilterValue>('all')
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [showVoid, setShowVoid] = useState(false)
@@ -61,8 +64,13 @@ export default function Invoices() {
   }, [customerId, showVoid])
 
   const filtered = useMemo(
-    () => invoices.filter((invoice) => isWithinDateRange(invoice.created_at, dateRange)),
-    [invoices, dateRange],
+    () =>
+      invoices.filter(
+        (invoice) =>
+          isWithinDateRange(invoice.created_at, dateRange) &&
+          (seriesFilter === 'all' || invoice.invoice_series === seriesFilter),
+      ),
+    [invoices, dateRange, seriesFilter],
   )
 
   const gstInvoiceIds = useMemo(
@@ -123,6 +131,7 @@ export default function Invoices() {
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter onChange={setDateRange} />
+          <SeriesFilter value={seriesFilter} onChange={setSeriesFilter} />
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">
             <input
               type="checkbox"
@@ -170,7 +179,7 @@ export default function Invoices() {
           <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoices…</p>
         ) : filtered.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-400">
-            {invoices.length === 0 ? 'No invoices yet. Create your first one.' : 'No invoices match this date range.'}
+            {invoices.length === 0 ? 'No invoices yet. Create your first one.' : 'No invoices match these filters.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
