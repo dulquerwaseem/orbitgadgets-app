@@ -14,6 +14,20 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Number inputs: no spinner arrows, and (paired with the wheel guard
+   installed in main.tsx) no scroll-to-change-value -- staff kept
+   accidentally editing a focused number field while scrolling the page. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Page/section titles get the more characterful heading font; everything
    else (tables, forms, data) stays on the clean geometric body sans. */
 .font-heading {
@@ -32,10 +46,11 @@ body {
 
 /* The category-color system (rose/violet/amber/teal per sidebar section)
    has been walked back -- it read as decorative rather than restrained.
-   The brand gradient now appears in exactly three places, full stop: the
-   active sidebar item's edge indicator, the logo mark itself, and one
-   "hero number" per relevant page (e.g. Finance's Revenue This Month).
-   Everywhere else is black/white/grey on purpose. */
+   The brand gradient now appears in exactly four places, full stop: the
+   active sidebar item's edge indicator, the logo mark itself, one
+   "hero number" per relevant page (e.g. Finance's Revenue This Month),
+   and a thin ring around the sidebar's collapse-icon. Everywhere else is
+   black/white/grey on purpose. */
 
 /* The real logo mark (used at small size when the sidebar is collapsed).
    This is literally the logo, not a UI accent, so it's allowed to stay at
@@ -50,6 +65,23 @@ body {
 .accent-indicator {
   background-image: linear-gradient(135deg, var(--color-accent-from), var(--color-accent-to));
   opacity: 0.6;
+}
+
+/* Thin gradient ring around the sidebar collapse icon -- border-only, no
+   fill, so it reads as a subtle accent rather than a colored button. Uses
+   a mask to punch out the center rather than `border-image` because
+   `border-image` ignores `border-radius` and would render square corners. */
+.icon-gradient-ring {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 0.5rem;
+  background-image: linear-gradient(135deg, var(--color-accent-from), var(--color-accent-to));
+  opacity: 0.7;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
 /* One "hero number" per relevant page (currently just Finance's Revenue

@@ -402,7 +402,7 @@ export default function InvoiceDetail() {
           {!invoice.superseded && !invoice.void && creditNotes.length === 0 && paymentsCount === 0 && (
             <button
               onClick={openVoidModal}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
+              className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 active:bg-red-100"
             >
               Void Invoice
             </button>
@@ -458,7 +458,7 @@ export default function InvoiceDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <PrintHeader label="Invoice" />
+        <PrintHeader label="Invoice" showGstin={invoice.invoice_series === 'gst'} />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>
@@ -492,15 +492,6 @@ export default function InvoiceDetail() {
                 {formatLabel(invoice.payment_status)}
               </span>
             </p>
-            <span
-              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                invoice.invoice_series === 'gst'
-                  ? 'bg-violet-50 text-violet-600'
-                  : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {invoice.invoice_series === 'gst' ? 'GST' : 'Non-GST'}
-            </span>
           </div>
         </div>
 

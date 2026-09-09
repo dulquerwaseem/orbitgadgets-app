@@ -96,7 +96,7 @@ export default function CreditNoteDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <PrintHeader label="Credit Note" />
+        <PrintHeader label="Credit Note" showGstin={creditNote.is_gst} />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>

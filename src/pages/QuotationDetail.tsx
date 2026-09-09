@@ -300,7 +300,7 @@ export default function QuotationDetail() {
       )}
 
       <div className="rounded-2xl bg-white p-8 card-shadow print:shadow-none">
-        <PrintHeader label="Quotation" />
+        <PrintHeader label="Quotation" showGstin={quotation.invoice_series === 'gst'} />
 
         <div className="mb-8 grid grid-cols-2 gap-6">
           <div>

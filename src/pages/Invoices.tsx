@@ -123,7 +123,7 @@ export default function Invoices() {
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter onChange={setDateRange} />
-          <label className="flex items-center gap-2 text-sm text-slate-500">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">
             <input
               type="checkbox"
               checked={showVoid}

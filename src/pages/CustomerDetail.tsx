@@ -264,7 +264,7 @@ export default function CustomerDetail() {
           <button
             onClick={() => void handleDelete()}
             disabled={deleting}
-            className="rounded-xl px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 active:bg-red-100 disabled:opacity-50"
           >
             {deleting ? 'Deleting…' : 'Delete Customer'}
           </button>

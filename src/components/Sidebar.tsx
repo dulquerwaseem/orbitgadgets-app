@@ -165,11 +165,13 @@ export default function Sidebar() {
             collapsed ? 'justify-center' : ''
           }`}
         >
-          {collapsed ? (
-            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={2} />
-          ) : (
-            <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={2} />
-          )}
+          <span className="icon-gradient-ring">
+            {collapsed ? (
+              <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={2} />
+            ) : (
+              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={2} />
+            )}
+          </span>
           {!collapsed && <span>Collapse</span>}
         </button>
 
