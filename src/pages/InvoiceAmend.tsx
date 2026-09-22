@@ -1,66 +1,137 @@
-import { useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatLabel, round2 } from '../lib/format'
-import CustomerPicker from '../components/CustomerPicker'
-import type { Customer } from '../components/CustomerPicker'
-import JobSheetPicker from '../components/invoice/JobSheetPicker'
-import type { JobSheetOption } from '../components/invoice/JobSheetPicker'
 import LineItemForm from '../components/LineItemForm'
-import type { DraftItem } from '../components/LineItemForm'
+import type { DraftItem, WarrantyUnit } from '../components/LineItemForm'
 
-type InvoiceSeries = 'gst' | 'non_gst'
-type PaymentStatus = 'unpaid' | 'partial' | 'paid'
-
-const paymentStatusOptions: PaymentStatus[] = ['unpaid', 'partial', 'paid']
-
-// Passed via navigate(..., { state }) from a job sheet's "Mark Delivered & Bill" button.
-interface InvoiceNewLocationState {
-  jobSheetId?: string
-  jobSheetNumber?: string
-  deviceName?: string | null
-  customer?: Customer
+interface AmendInvoiceData {
+  id: string
+  invoice_number: string
+  invoice_series: 'gst' | 'non_gst'
+  discount: number
+  labor_charge: number
+  labor_sac_code: string | null
+  round_off: boolean
+  tax_inclusive_entry: boolean
+  final_price: number
+  void: boolean
+  superseded: boolean
+  customers: { name: string } | null
 }
 
-export default function InvoiceNew() {
-  const { membership } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const prefill = (location.state ?? null) as InvoiceNewLocationState | null
+interface ExistingItemRow {
+  id: string
+  item_type: DraftItem['item_type']
+  product_id: string | null
+  spare_part_id: string | null
+  item_name: string
+  description: string | null
+  hsn_code: string | null
+  serial_imei: string | null
+  ram: string | null
+  storage: string | null
+  quantity: number
+  unit_price: number
+  cost_price: number | null
+  warranty_days: number | null
+  warranty_unit: WarrantyUnit
+  warranty_notes: string | null
+}
 
-  const [invoiceSeries, setInvoiceSeries] = useState<InvoiceSeries>('non_gst')
-  const [customer, setCustomer] = useState<Customer | null>(() => prefill?.customer ?? null)
-  const [jobSheet, setJobSheet] = useState<JobSheetOption | null>(() =>
-    prefill?.jobSheetId
-      ? {
-          id: prefill.jobSheetId,
-          job_number: prefill.jobSheetNumber ?? '',
-          device_name: prefill.deviceName ?? null,
-          customer_id: prefill.customer?.id ?? null,
-        }
-      : null,
-  )
-  const [customerGst, setCustomerGst] = useState(() => prefill?.customer?.gst_number ?? '')
-  const [ewayBill, setEwayBill] = useState('')
+export default function InvoiceAmend() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+
+  const [invoice, setInvoice] = useState<AmendInvoiceData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const [items, setItems] = useState<DraftItem[]>([])
   const [laborCharge, setLaborCharge] = useState('')
   const [laborSacCode, setLaborSacCode] = useState('')
   const [discount, setDiscount] = useState('')
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('paid')
-  const [amountPaid, setAmountPaid] = useState('')
-  const [amountPaidTouched, setAmountPaidTouched] = useState(false)
   const [roundOff, setRoundOff] = useState(false)
   const [taxInclusive, setTaxInclusive] = useState(false)
+  const [reason, setReason] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function handleCustomerChange(next: Customer | null) {
-    setCustomer(next)
-    setCustomerGst(next?.gst_number ?? '')
-  }
+  useEffect(() => {
+    if (!id) return
+    let active = true
+
+    async function load() {
+      setLoading(true)
+      setLoadError(null)
+
+      const [{ data: invoiceData, error: invoiceError }, { data: itemsData, error: itemsError }] =
+        await Promise.all([
+          supabase
+            .from('invoices')
+            .select(
+              'id, invoice_number, invoice_series, discount, labor_charge, labor_sac_code, round_off, tax_inclusive_entry, final_price, void, superseded, customers(name)',
+            )
+            .eq('id', id)
+            .single(),
+          supabase
+            .from('invoice_items')
+            .select(
+              'id, item_type, product_id, spare_part_id, item_name, description, hsn_code, serial_imei, ram, storage, quantity, unit_price, cost_price, warranty_days, warranty_unit, warranty_notes',
+            )
+            .eq('invoice_id', id)
+            .order('created_at', { ascending: true }),
+        ])
+
+      if (!active) return
+
+      if (invoiceError || !invoiceData) {
+        setLoadError(invoiceError?.message ?? 'Invoice not found')
+        setLoading(false)
+        return
+      }
+      if (itemsError) {
+        setLoadError(itemsError.message)
+        setLoading(false)
+        return
+      }
+
+      const invoiceRow = invoiceData as unknown as AmendInvoiceData
+      setInvoice(invoiceRow)
+      setLaborCharge(invoiceRow.labor_charge ? String(invoiceRow.labor_charge) : '')
+      setLaborSacCode(invoiceRow.labor_sac_code ?? '')
+      setDiscount(invoiceRow.discount ? String(invoiceRow.discount) : '')
+      setRoundOff(invoiceRow.round_off)
+      setTaxInclusive(invoiceRow.tax_inclusive_entry)
+      setItems(
+        ((itemsData ?? []) as ExistingItemRow[]).map((item) => ({
+          key: item.id,
+          item_type: item.item_type,
+          product_id: item.product_id,
+          spare_part_id: item.spare_part_id,
+          item_name: item.item_name,
+          description: item.description,
+          hsn_code: item.hsn_code,
+          serial_imei: item.serial_imei,
+          ram: item.ram,
+          storage: item.storage,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          cost_price: item.cost_price,
+          warranty_days: item.warranty_days,
+          warranty_unit: item.warranty_unit,
+          warranty_notes: item.warranty_notes,
+        })),
+      )
+      setLoading(false)
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [id])
 
   const itemsSubtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
@@ -69,51 +140,45 @@ export default function InvoiceNew() {
   const laborChargeNum = Number(laborCharge) || 0
   const discountNum = Number(discount) || 0
   const combinedAmount = itemsSubtotal + laborChargeNum - discountNum
-  const isTaxInclusive = invoiceSeries === 'gst' && taxInclusive
+  const isGst = invoice?.invoice_series === 'gst'
+  const isTaxInclusive = isGst && taxInclusive
 
   const taxableValue = isTaxInclusive ? round2(combinedAmount / 1.18) : combinedAmount
   const cgstAmount = isTaxInclusive
     ? round2((combinedAmount - taxableValue) / 2)
-    : invoiceSeries === 'gst'
+    : isGst
       ? round2(taxableValue * 0.09)
       : 0
   const sgstAmount = cgstAmount
   const preRoundTotal = isTaxInclusive ? combinedAmount : taxableValue + cgstAmount + sgstAmount
   const roundOffAmount = roundOff ? Math.round(preRoundTotal) - preRoundTotal : 0
   const grandTotal = roundOff ? Math.round(preRoundTotal) : preRoundTotal
-  const amountPaidDisplay = amountPaidTouched ? amountPaid : grandTotal.toFixed(2)
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((item) => item.key !== key))
   }
 
   async function handleSubmit() {
-    if (!membership) return
+    if (!id || !invoice) return
     setError(null)
 
-    if (!customer) {
-      setError('Select or add a customer before saving.')
+    if (items.length === 0) {
+      setError('An invoice must have at least one line item.')
       return
     }
-    if (items.length === 0) {
-      setError('Add at least one line item before saving.')
+    if (!reason.trim()) {
+      setError('A reason is required to amend an invoice.')
       return
     }
 
     setSaving(true)
 
-    const { data, error } = await supabase.rpc('create_invoice', {
-      p_tenant_id: membership.tenantId,
-      p_invoice_series: invoiceSeries,
-      p_customer_id: customer.id,
-      p_job_sheet_id: jobSheet?.id ?? null,
-      p_customer_gst: customerGst.trim() || null,
-      p_eway_bill: ewayBill.trim() || null,
+    const { error: amendError } = await supabase.rpc('amend_invoice', {
+      p_invoice_id: id,
+      p_reason: reason.trim(),
       p_discount: discountNum,
       p_labor_charge: laborChargeNum,
       p_labor_sac_code: laborSacCode.trim() || null,
-      p_payment_status: paymentStatus,
-      p_amount_paid: Number(amountPaidDisplay) || 0,
       p_round_off: roundOff,
       p_tax_inclusive: isTaxInclusive,
       p_items: items.map((item) => ({
@@ -137,90 +202,56 @@ export default function InvoiceNew() {
 
     setSaving(false)
 
-    if (error) {
-      setError(error.message)
+    if (amendError) {
+      setError(amendError.message)
       return
     }
 
-    navigate(`/invoices/${data.id}`)
+    navigate(`/invoices/${id}`)
+  }
+
+  if (loading) {
+    return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoice…</p>
+  }
+
+  if (loadError && !invoice) {
+    return <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{loadError}</p>
+  }
+
+  if (!invoice) return null
+
+  if (invoice.void || invoice.superseded) {
+    return (
+      <div>
+        <Link to={`/invoices/${invoice.id}`} className="text-sm text-slate-400 hover:text-slate-600">
+          ← {invoice.invoice_number}
+        </Link>
+        <p className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">
+          {invoice.void ? 'A voided invoice' : 'A superseded invoice'} cannot be amended.
+        </p>
+      </div>
+    )
   }
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">New Invoice</h1>
-        <p className="mt-1 text-sm text-slate-400">Create an invoice with or without a job sheet.</p>
+        <Link to={`/invoices/${invoice.id}`} className="text-sm text-slate-400 hover:text-slate-600">
+          ← {invoice.invoice_number}
+        </Link>
+        <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-900">
+          Amend Invoice
+        </h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Correct price, quantity, or tax mistakes on {invoice.invoice_number}
+          {invoice.customers?.name ? ` · ${invoice.customers.name}` : ''}. This creates a permanent,
+          visible amendment record — it is not for returns (use a credit note) or same-day
+          data-entry mistakes with no financial activity (use void).
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Invoice Series</h2>
-            <div className="flex gap-2">
-              {(['non_gst', 'gst'] as InvoiceSeries[]).map((series) => (
-                <button
-                  key={series}
-                  type="button"
-                  onClick={() => setInvoiceSeries(series)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                    invoiceSeries === series
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  {series === 'gst' ? 'GST' : 'Non-GST'}
-                </button>
-              ))}
-            </div>
-            {invoiceSeries === 'gst' && (
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-600">
-                    Customer GSTIN
-                  </label>
-                  <input
-                    type="text"
-                    value={customerGst}
-                    onChange={(e) => setCustomerGst(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-600">
-                    E-way Bill (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={ewayBill}
-                    onChange={(e) => setEwayBill(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
-                  />
-                </div>
-              </div>
-            )}
-            {invoiceSeries === 'gst' && (
-              <label className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={taxInclusive}
-                  onChange={(e) => setTaxInclusive(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                />
-                Prices include GST
-              </label>
-            )}
-          </section>
-
-          <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Customer</h2>
-            <CustomerPicker value={customer} onChange={handleCustomerChange} />
-          </section>
-
-          <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Job Sheet (optional)</h2>
-            <JobSheetPicker value={jobSheet} onChange={setJobSheet} />
-          </section>
-
           <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Line Items</h2>
 
@@ -264,6 +295,11 @@ export default function InvoiceNew() {
                 </table>
               </div>
             )}
+
+            <p className="mb-3 text-xs text-slate-400">
+              To correct a price or quantity, remove the incorrect line below and add it back with
+              the right values.
+            </p>
 
             <LineItemForm onAdd={(item) => setItems((prev) => [...prev, item])} showWarranty />
           </section>
@@ -315,58 +351,42 @@ export default function InvoiceNew() {
                 />
                 Round off total
               </label>
+              {isGst && (
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={taxInclusive}
+                    onChange={(e) => setTaxInclusive(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                  />
+                  Prices include GST
+                </label>
+              )}
             </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 card-shadow">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Reason for Amendment</h2>
+            <textarea
+              required
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Mistyped unit price on the screen repair line — should be ₹999, not ₹1,199"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
           </section>
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-8 lg:self-start">
           <section className="rounded-2xl bg-white p-5 card-shadow">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Payment</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-600">
-                  Payment Status
-                </label>
-                <select
-                  value={paymentStatus}
-                  onChange={(e) => {
-                    const next = e.target.value as PaymentStatus
-                    setPaymentStatus(next)
-                    if (next === 'unpaid') {
-                      setAmountPaid('0')
-                      setAmountPaidTouched(true)
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
-                >
-                  {paymentStatusOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {formatLabel(opt)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-600">Amount Paid</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amountPaidDisplay}
-                  onChange={(e) => {
-                    setAmountPaid(e.target.value)
-                    setAmountPaidTouched(true)
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-2xl bg-white p-5 card-shadow">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Summary</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-500">
+                <span>Current Total</span>
+                <span>{formatCurrencyExact(invoice.final_price)}</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-slate-500">
                 <span>Items Subtotal</span>
                 <span>{formatCurrencyExact(itemsSubtotal)}</span>
               </div>
@@ -382,7 +402,7 @@ export default function InvoiceNew() {
                 <span>Taxable Value</span>
                 <span>{formatCurrencyExact(taxableValue)}</span>
               </div>
-              {invoiceSeries === 'gst' && (
+              {isGst && (
                 <>
                   <div className="flex justify-between text-slate-500">
                     <span>CGST (9%)</span>
@@ -404,7 +424,7 @@ export default function InvoiceNew() {
                 </div>
               )}
               <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
-                <span>Total</span>
+                <span>New Total</span>
                 <span>{formatCurrencyExact(grandTotal)}</span>
               </div>
             </div>
@@ -419,7 +439,7 @@ export default function InvoiceNew() {
               disabled={saving}
               className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Save Invoice'}
+              {saving ? 'Saving…' : 'Save Amendment'}
             </button>
           </section>
         </div>

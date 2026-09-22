@@ -17,6 +17,15 @@ const dateFormatter = new Intl.DateTimeFormat('en-IN', {
   year: 'numeric',
 })
 
+// Plain Math.round(n * 100) / 100 misrounds boundary cases like 76.195 to
+// 76.19 instead of 76.20 -- floating-point subtraction (e.g. 999 - 846.61)
+// lands a hair below the true value, and that noise flips which side of the
+// boundary the rounding falls on. The epsilon nudges past that noise without
+// affecting any real (non-boundary) value.
+export function round2(value: number) {
+  return Math.round((value + 1e-8) * 100) / 100
+}
+
 export function formatCurrency(value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
   return currencyFormatter.format(value)

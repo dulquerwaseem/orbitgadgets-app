@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PaymentsSection from '../components/vendorpurchase/PaymentsSection'
 import DebitNotesSection from '../components/vendorpurchase/DebitNotesSection'
+import AmendmentHistorySection from '../components/vendorpurchase/AmendmentHistorySection'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
+import Modal from '../components/Modal'
 
 interface VendorPurchaseData {
   id: string
@@ -51,6 +54,11 @@ const paymentStatusStyles: Record<string, string> = {
   unpaid: 'bg-red-50 text-red-500',
 }
 
+interface VendorOption {
+  id: string
+  name: string
+}
+
 export default function VendorPurchaseDetail() {
   const { id } = useParams<{ id: string }>()
   const { membership } = useAuth()
@@ -58,28 +66,45 @@ export default function VendorPurchaseDetail() {
 
   const [purchase, setPurchase] = useState<VendorPurchaseData | null>(null)
   const [items, setItems] = useState<VendorPurchaseItemRow[]>([])
+  const [amendmentsCount, setAmendmentsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [vendors, setVendors] = useState<VendorOption[]>([])
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editVendorId, setEditVendorId] = useState('')
+  const [editSupplierInvoiceNo, setEditSupplierInvoiceNo] = useState('')
+  const [editPurchaseDate, setEditPurchaseDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   async function loadPurchase(purchaseId: string) {
     setLoading(true)
     setError(null)
 
-    const [{ data: purchaseData, error: purchaseError }, { data: itemsData, error: itemsError }] =
-      await Promise.all([
-        supabase
-          .from('vendor_purchases')
-          .select('*, vendors(name, gstin, contact_phone, contact_email)')
-          .eq('id', purchaseId)
-          .single(),
-        supabase
-          .from('vendor_purchase_items')
-          .select(
-            'id, item_type, item_name, brand, category, hsn_code, description, quantity, unit_price, gst_rate, taxable_value, gst_amount, total, serials, product_ids, spare_part_id',
-          )
-          .eq('purchase_id', purchaseId)
-          .order('created_at', { ascending: true }),
-      ])
+    const [
+      { data: purchaseData, error: purchaseError },
+      { data: itemsData, error: itemsError },
+      { count: amendmentsCountData },
+    ] = await Promise.all([
+      supabase
+        .from('vendor_purchases')
+        .select('*, vendors(name, gstin, contact_phone, contact_email)')
+        .eq('id', purchaseId)
+        .single(),
+      supabase
+        .from('vendor_purchase_items')
+        .select(
+          'id, item_type, item_name, brand, category, hsn_code, description, quantity, unit_price, gst_rate, taxable_value, gst_amount, total, serials, product_ids, spare_part_id',
+        )
+        .eq('purchase_id', purchaseId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('vendor_purchase_amendments')
+        .select('id', { count: 'exact', head: true })
+        .eq('purchase_id', purchaseId),
+    ])
 
     if (purchaseError || !purchaseData) {
       setError(purchaseError?.message ?? 'Purchase not found')
@@ -94,12 +119,58 @@ export default function VendorPurchaseDetail() {
 
     setPurchase(purchaseData as unknown as VendorPurchaseData)
     setItems(itemsData ?? [])
+    setAmendmentsCount(amendmentsCountData ?? 0)
     setLoading(false)
   }
 
   useEffect(() => {
     if (id) void loadPurchase(id)
   }, [id])
+
+  function openEditModal() {
+    if (!purchase) return
+    setEditError(null)
+    setEditVendorId(purchase.vendor_id)
+    setEditSupplierInvoiceNo(purchase.supplier_invoice_no ?? '')
+    setEditPurchaseDate(purchase.purchase_date)
+    setEditNotes(purchase.notes ?? '')
+    if (vendors.length === 0) {
+      supabase
+        .from('vendors')
+        .select('id, name')
+        .order('name', { ascending: true })
+        .then(({ data }) => setVendors(data ?? []))
+    }
+    setEditModalOpen(true)
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!purchase) return
+
+    setEditSaving(true)
+    setEditError(null)
+
+    const { error: updateError } = await supabase
+      .from('vendor_purchases')
+      .update({
+        vendor_id: editVendorId,
+        supplier_invoice_no: editSupplierInvoiceNo.trim() || null,
+        purchase_date: editPurchaseDate,
+        notes: editNotes.trim() || null,
+      })
+      .eq('id', purchase.id)
+
+    setEditSaving(false)
+
+    if (updateError) {
+      setEditError(updateError.message)
+      return
+    }
+
+    setEditModalOpen(false)
+    void loadPurchase(purchase.id)
+  }
 
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading purchase…</p>
@@ -122,12 +193,38 @@ export default function VendorPurchaseDetail() {
             {purchase.purchase_number}
           </h1>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
-        >
-          Print / Download
-        </button>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button
+              onClick={openEditModal}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+            >
+              Edit Details
+            </button>
+          )}
+          {isAdmin && (
+            <Link
+              to={`/vendor-purchases/${purchase.id}/amend`}
+              aria-disabled={items.length === 0}
+              onClick={(e) => {
+                if (items.length === 0) e.preventDefault()
+              }}
+              className={`rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors ${
+                items.length === 0
+                  ? 'cursor-not-allowed opacity-40'
+                  : 'hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100'
+              }`}
+            >
+              Amend Purchase
+            </Link>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2 text-sm font-medium transition-opacity"
+          >
+            Print / Download
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -307,6 +404,113 @@ export default function VendorPurchaseDetail() {
           isAdmin={isAdmin}
         />
       </div>
+
+      {amendmentsCount > 0 && (
+        <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Amendment History</h2>
+          <AmendmentHistorySection purchaseId={purchase.id} />
+        </div>
+      )}
+
+      <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Purchase Details">
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Only non-financial details can be changed here — vendor, supplier invoice number,
+            purchase date, and notes. Prices, quantities, tax, and totals are never touched by this
+            form.
+          </p>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Vendor</label>
+            <select
+              value={editVendorId}
+              onChange={(e) => setEditVendorId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            >
+              {vendors.length === 0 && purchase.vendors && (
+                <option value={editVendorId}>{purchase.vendors.name}</option>
+              )}
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                Supplier Invoice No.
+              </label>
+              <input
+                type="text"
+                value={editSupplierInvoiceNo}
+                onChange={(e) => setEditSupplierInvoiceNo(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                Purchase Date
+              </label>
+              <input
+                type="date"
+                value={editPurchaseDate}
+                onChange={(e) => setEditPurchaseDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Notes (optional)
+            </label>
+            <textarea
+              rows={2}
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Purchase Kind</label>
+            <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500">
+              <span>{formatLabel(purchase.purchase_kind)}</span>
+              <span className="ml-auto text-xs text-slate-400">
+                Locked — contact support if this is genuinely wrong
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              Changing between Stock-in-Trade and Office Expense/Capital Asset after the fact could
+              strand or duplicate inventory that was (or wasn't) created at purchase time.
+            </p>
+          </div>
+
+          {editError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {editSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

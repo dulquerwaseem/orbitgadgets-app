@@ -7,6 +7,7 @@ import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
 import InvoicePaymentsSection from '../components/invoice/InvoicePaymentsSection'
+import AmendmentHistorySection from '../components/invoice/AmendmentHistorySection'
 import Modal from '../components/Modal'
 import CustomerPicker from '../components/CustomerPicker'
 import type { Customer } from '../components/CustomerPicker'
@@ -117,6 +118,7 @@ export default function InvoiceDetail() {
   const [creditNotes, setCreditNotes] = useState<CreditNoteRow[]>([])
   const [supersededBy, setSupersededBy] = useState<{ id: string; invoice_number: string } | null>(null)
   const [paymentsCount, setPaymentsCount] = useState(0)
+  const [amendmentsCount, setAmendmentsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
@@ -141,6 +143,7 @@ export default function InvoiceDetail() {
       { data: itemsData, error: itemsError },
       { data: creditNoteData },
       { count: paymentsCountData },
+      { count: amendmentsCountData },
     ] = await Promise.all([
       supabase
         .from('invoices')
@@ -165,6 +168,10 @@ export default function InvoiceDetail() {
         .from('invoice_payments')
         .select('id', { count: 'exact', head: true })
         .eq('invoice_id', invoiceId),
+      supabase
+        .from('invoice_amendments')
+        .select('id', { count: 'exact', head: true })
+        .eq('invoice_id', invoiceId),
     ])
 
     if (invoiceError || !invoiceData) {
@@ -182,6 +189,7 @@ export default function InvoiceDetail() {
     setItems(itemsData ?? [])
     setCreditNotes(creditNoteData ?? [])
     setPaymentsCount(paymentsCountData ?? 0)
+    setAmendmentsCount(amendmentsCountData ?? 0)
 
     if ((invoiceData as unknown as InvoiceDetailData).superseded) {
       const { data: newer } = await supabase
@@ -398,6 +406,29 @@ export default function InvoiceDetail() {
             >
               Edit Invoice
             </button>
+          )}
+          {isAdmin && (
+            <Link
+              to={`/invoices/${invoice.id}/amend`}
+              aria-disabled={invoice.superseded || invoice.void}
+              title={
+                invoice.void
+                  ? 'A voided invoice cannot be amended'
+                  : invoice.superseded
+                    ? 'A superseded invoice cannot be amended'
+                    : undefined
+              }
+              onClick={(e) => {
+                if (invoice.superseded || invoice.void) e.preventDefault()
+              }}
+              className={`rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors ${
+                invoice.superseded || invoice.void
+                  ? 'cursor-not-allowed opacity-40'
+                  : 'hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100'
+              }`}
+            >
+              Amend Invoice
+            </Link>
           )}
           {!invoice.superseded && !invoice.void && creditNotes.length === 0 && paymentsCount === 0 && (
             <button
@@ -637,6 +668,13 @@ export default function InvoiceDetail() {
             amountPaid={invoice.amount_paid}
             onPaymentRecorded={() => id && void loadInvoice(id)}
           />
+        </div>
+      )}
+
+      {amendmentsCount > 0 && (
+        <div className="no-print mt-6 rounded-2xl bg-white p-5 card-shadow">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Amendment History</h2>
+          <AmendmentHistorySection invoiceId={invoice.id} />
         </div>
       )}
 

@@ -11,6 +11,7 @@ import SpareParts from './pages/SpareParts'
 import Invoices from './pages/Invoices'
 import InvoiceNew from './pages/InvoiceNew'
 import InvoiceDetail from './pages/InvoiceDetail'
+import InvoiceAmend from './pages/InvoiceAmend'
 import JobSheets from './pages/JobSheets'
 import JobSheetNew from './pages/JobSheetNew'
 import JobSheetDetail from './pages/JobSheetDetail'
@@ -24,6 +25,7 @@ import Vendors from './pages/Vendors'
 import VendorPurchases from './pages/VendorPurchases'
 import VendorPurchaseNew from './pages/VendorPurchaseNew'
 import VendorPurchaseDetail from './pages/VendorPurchaseDetail'
+import VendorPurchaseAmend from './pages/VendorPurchaseAmend'
 import Finance from './pages/Finance'
 import Team from './pages/Team'
 import Account from './pages/Account'
@@ -49,6 +51,9 @@ function App() {
                 <Route path="/invoices/new" element={<InvoiceNew />} />
                 <Route path="/invoices/:id" element={<InvoiceDetail />} />
                 <Route path="/invoices/:invoiceId/credit-notes/new" element={<CreditNoteNew />} />
+                <Route element={<RequireAdmin />}>
+                  <Route path="/invoices/:id/amend" element={<InvoiceAmend />} />
+                </Route>
                 <Route path="/quotations" element={<Quotations />} />
                 <Route path="/quotations/new" element={<QuotationNew />} />
                 <Route path="/quotations/:id" element={<QuotationDetail />} />
@@ -72,6 +77,9 @@ function App() {
                 <Route path="/vendor-purchases" element={<VendorPurchases />} />
                 <Route path="/vendor-purchases/new" element={<VendorPurchaseNew />} />
                 <Route path="/vendor-purchases/:id" element={<VendorPurchaseDetail />} />
+                <Route element={<RequireAdmin />}>
+                  <Route path="/vendor-purchases/:id/amend" element={<VendorPurchaseAmend />} />
+                </Route>
               </Route>
 
               <Route element={<RequirePermission permission="finance" />}>
