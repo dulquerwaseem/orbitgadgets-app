@@ -4,7 +4,7 @@ import { formatDate, formatLabel } from './format'
 export interface GstInvoiceExportRow {
   id: string
   invoice_number: string
-  created_at: string
+  invoice_date: string
   customer_gst: string | null
   taxable_value: number
   cgst_amount: number
@@ -42,7 +42,7 @@ function formatFileDate(date: Date): string {
 // (the "All Time" preset, or a custom range with only one side filled in).
 export function resolveExportFileDates(
   range: ExportDateRange,
-  invoices: { created_at: string }[],
+  invoices: { invoice_date: string }[],
 ): { from: string; to: string } {
   if (range.start && range.end) {
     return { from: formatFileDate(range.start), to: formatFileDate(range.end) }
@@ -51,7 +51,7 @@ export function resolveExportFileDates(
     const today = formatFileDate(new Date())
     return { from: today, to: today }
   }
-  const times = invoices.map((inv) => new Date(inv.created_at).getTime())
+  const times = invoices.map((inv) => new Date(inv.invoice_date).getTime())
   return {
     from: formatFileDate(new Date(Math.min(...times))),
     to: formatFileDate(new Date(Math.max(...times))),
@@ -81,7 +81,7 @@ export async function downloadGstSalesExcel(
   summarySheet.addRows(
     invoices.map((inv) => ({
       invoiceNumber: inv.invoice_number,
-      invoiceDate: formatDate(inv.created_at),
+      invoiceDate: formatDate(inv.invoice_date),
       customerName: inv.customers?.name ?? '',
       customerGstin: inv.customer_gst ?? '',
       taxableValue: inv.taxable_value,
@@ -111,7 +111,7 @@ export async function downloadGstSalesExcel(
       const invoice = invoiceById.get(item.invoice_id)
       return {
         invoiceNumber: invoice?.invoice_number ?? '',
-        invoiceDate: invoice ? formatDate(invoice.created_at) : '',
+        invoiceDate: invoice ? formatDate(invoice.invoice_date) : '',
         itemName: item.item_name,
         hsnCode: item.hsn_code ?? '',
         itemType: formatLabel(item.item_type),

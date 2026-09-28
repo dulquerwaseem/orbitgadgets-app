@@ -14,7 +14,7 @@ interface InvoiceRow {
   invoice_series: 'gst' | 'non_gst'
   final_price: number
   payment_status: string
-  created_at: string
+  invoice_date: string
   void: boolean
   customers: { name: string } | null
 }
@@ -44,12 +44,14 @@ export default function Invoices() {
     let query = supabase
       .from('invoices')
       .select(
-        'id, invoice_number, invoice_series, final_price, payment_status, created_at, void, customers(name)',
+        'id, invoice_number, invoice_series, final_price, payment_status, invoice_date, void, customers(name)',
       )
       .eq('superseded', false)
     if (customerId) query = query.eq('customer_id', customerId)
     if (!showVoid) query = query.eq('void', false)
-    const { data, error } = await query.order('created_at', { ascending: false })
+    const { data, error } = await query
+      .order('invoice_date', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) {
       setError(error.message)
@@ -67,7 +69,7 @@ export default function Invoices() {
     () =>
       invoices.filter(
         (invoice) =>
-          isWithinDateRange(invoice.created_at, dateRange) &&
+          isWithinDateRange(invoice.invoice_date, dateRange) &&
           (seriesFilter === 'all' || invoice.invoice_series === seriesFilter),
       ),
     [invoices, dateRange, seriesFilter],
@@ -94,9 +96,10 @@ export default function Invoices() {
       supabase
         .from('invoices')
         .select(
-          'id, invoice_number, created_at, customer_gst, taxable_value, cgst_amount, sgst_amount, final_price, payment_status, customers(name)',
+          'id, invoice_number, invoice_date, customer_gst, taxable_value, cgst_amount, sgst_amount, final_price, payment_status, customers(name)',
         )
         .in('id', gstInvoiceIds)
+        .order('invoice_date', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
         .from('invoice_items')
@@ -236,7 +239,7 @@ export default function Invoices() {
                       {formatLabel(invoice.payment_status)}
                     </span>
                   </td>
-                  <td className="px-6 py-3.5 text-slate-500">{formatDate(invoice.created_at)}</td>
+                  <td className="px-6 py-3.5 text-slate-500">{formatDate(invoice.invoice_date)}</td>
                 </tr>
               ))}
             </tbody>

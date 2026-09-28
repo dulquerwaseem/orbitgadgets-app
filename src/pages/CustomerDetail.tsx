@@ -25,7 +25,7 @@ interface CustomerFormValues {
 interface InvoiceHistoryRow {
   id: string
   invoice_number: string
-  created_at: string
+  invoice_date: string
   final_price: number
   payment_status: string
 }
@@ -131,10 +131,11 @@ export default function CustomerDetail() {
     const [{ data: invoiceRows }, { data: jobSheetRows }, { data: quotationRows }] = await Promise.all([
       supabase
         .from('invoices')
-        .select('id, invoice_number, created_at, final_price, payment_status')
+        .select('id, invoice_number, invoice_date, final_price, payment_status')
         .eq('customer_id', customerId)
         .eq('superseded', false)
         .eq('void', false)
+        .order('invoice_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(HISTORY_LIMIT + 1),
       supabase
@@ -391,7 +392,7 @@ export default function CustomerDetail() {
                     </span>
                   </div>
                   <div className="mt-0.5 flex items-center justify-between text-xs text-slate-400">
-                    <span>{formatDate(invoice.created_at)}</span>
+                    <span>{formatDate(invoice.invoice_date)}</span>
                     <span>{formatCurrencyExact(invoice.final_price)}</span>
                   </div>
                 </Link>

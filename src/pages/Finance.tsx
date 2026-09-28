@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Wallet, TrendingUp, Scale } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import { formatCurrencyExact, formatDate, formatLabel, localDateString } from '../lib/format'
 import Modal from '../components/Modal'
 import { hasPermission } from '../lib/permissions'
 import DateRangeFilter from '../components/DateRangeFilter'
@@ -36,18 +36,11 @@ interface LedgerEntry {
 
 const categoryOptions = ['rent', 'utilities', 'salaries', 'supplies', 'other']
 
-function formatDateOnly(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const emptyForm: ExpenseFormValues = {
   category: 'other',
   description: '',
   amount: '',
-  expense_date: new Date().toISOString().slice(0, 10),
+  expense_date: localDateString(),
 }
 
 type Tab = 'expenses' | 'ledger'
@@ -81,8 +74,8 @@ export default function Finance() {
     setExpensesLoading(true)
     setError(null)
     let query = supabase.from('expenses').select('id, category, description, amount, expense_date')
-    if (range.start) query = query.gte('expense_date', formatDateOnly(range.start))
-    if (range.end) query = query.lte('expense_date', formatDateOnly(range.end))
+    if (range.start) query = query.gte('expense_date', localDateString(range.start))
+    if (range.end) query = query.lte('expense_date', localDateString(range.end))
     const { data, error } = await query.order('expense_date', { ascending: false })
 
     if (error) {
@@ -116,12 +109,12 @@ export default function Finance() {
       .eq('void', false)
 
     if (range.start) {
-      expenseQuery = expenseQuery.gte('expense_date', formatDateOnly(range.start))
-      invoiceQuery = invoiceQuery.gte('created_at', range.start.toISOString())
+      expenseQuery = expenseQuery.gte('expense_date', localDateString(range.start))
+      invoiceQuery = invoiceQuery.gte('invoice_date', localDateString(range.start))
     }
     if (range.end) {
-      expenseQuery = expenseQuery.lte('expense_date', formatDateOnly(range.end))
-      invoiceQuery = invoiceQuery.lte('created_at', range.end.toISOString())
+      expenseQuery = expenseQuery.lte('expense_date', localDateString(range.end))
+      invoiceQuery = invoiceQuery.lte('invoice_date', localDateString(range.end))
     }
 
     const [{ data: expenseRows }, { data: invoiceRows }] = await Promise.all([expenseQuery, invoiceQuery])

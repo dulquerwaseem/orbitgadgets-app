@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { formatCurrencyExact, formatDate } from '../../lib/format'
 
 interface InvoiceSnapshot {
-  invoice?: { final_price?: number }
+  invoice?: { final_price?: number; invoice_date?: string }
 }
 
 interface AmendmentRow {
@@ -92,6 +92,9 @@ export default function AmendmentHistorySection({ invoiceId }: AmendmentHistoryS
         const admin = members[a.amended_by]
         const beforeTotal = a.before_snapshot?.invoice?.final_price
         const afterTotal = a.after_snapshot?.invoice?.final_price
+        const beforeDate = a.before_snapshot?.invoice?.invoice_date
+        const afterDate = a.after_snapshot?.invoice?.invoice_date
+        const dateChanged = beforeDate != null && afterDate != null && beforeDate !== afterDate
 
         return (
           <div key={a.id} className="rounded-xl border border-slate-100 px-4 py-3">
@@ -102,10 +105,17 @@ export default function AmendmentHistorySection({ invoiceId }: AmendmentHistoryS
               <span className="text-slate-400">{formatDate(a.amended_at)}</span>
             </div>
             <p className="mt-1 text-sm text-slate-600">{a.reason}</p>
-            {beforeTotal != null && afterTotal != null && (
+            {dateChanged ? (
               <p className="mt-1 text-xs text-slate-400">
-                Total: {formatCurrencyExact(beforeTotal)} → {formatCurrencyExact(afterTotal)}
+                Date: {formatDate(beforeDate)} → {formatDate(afterDate)}
               </p>
+            ) : (
+              beforeTotal != null &&
+              afterTotal != null && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Total: {formatCurrencyExact(beforeTotal)} → {formatCurrencyExact(afterTotal)}
+                </p>
+              )
             )}
           </div>
         )

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrencyExact, formatDate, formatLabel } from '../lib/format'
+import { formatCurrencyExact, formatDate, formatLabel, localDateString } from '../lib/format'
 import PrintHeader from '../components/print/PrintHeader'
 import PrintFooter from '../components/print/PrintFooter'
 import InvoicePaymentsSection from '../components/invoice/InvoicePaymentsSection'
@@ -35,7 +35,7 @@ interface InvoiceDetailData {
   superseded: boolean
   void: boolean
   void_reason: string | null
-  created_at: string
+  invoice_date: string
   customers: {
     id: string
     name: string
@@ -82,8 +82,8 @@ const warrantyUnitLabels: Record<WarrantyUnit, string> = {
   years: 'year',
 }
 
-function warrantyUntil(invoiceCreatedAt: string, amount: number, unit: WarrantyUnit): string {
-  const until = new Date(invoiceCreatedAt)
+function warrantyUntil(invoiceDate: string, amount: number, unit: WarrantyUnit): string {
+  const until = new Date(invoiceDate)
   if (unit === 'months') {
     until.setMonth(until.getMonth() + amount)
   } else if (unit === 'years') {
@@ -133,6 +133,12 @@ export default function InvoiceDetail() {
   const [editItems, setEditItems] = useState<EditableItemDraft[]>([])
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+
+  const [dateModalOpen, setDateModalOpen] = useState(false)
+  const [newInvoiceDate, setNewInvoiceDate] = useState('')
+  const [dateReason, setDateReason] = useState('')
+  const [dateSaving, setDateSaving] = useState(false)
+  const [dateError, setDateError] = useState<string | null>(null)
 
   async function loadInvoice(invoiceId: string) {
     setLoading(true)
@@ -363,6 +369,42 @@ export default function InvoiceDetail() {
     void loadInvoice(invoice.id)
   }
 
+  function openDateModal() {
+    if (!invoice) return
+    setDateError(null)
+    setNewInvoiceDate(invoice.invoice_date)
+    setDateReason('')
+    setDateModalOpen(true)
+  }
+
+  async function handleChangeDate(e: FormEvent) {
+    e.preventDefault()
+    if (!invoice) return
+    if (!dateReason.trim()) {
+      setDateError('A reason is required.')
+      return
+    }
+
+    setDateSaving(true)
+    setDateError(null)
+
+    const { error: changeDateError } = await supabase.rpc('change_invoice_date', {
+      p_invoice_id: invoice.id,
+      p_new_date: newInvoiceDate,
+      p_reason: dateReason.trim(),
+    })
+
+    setDateSaving(false)
+
+    if (changeDateError) {
+      setDateError(changeDateError.message)
+      return
+    }
+
+    setDateModalOpen(false)
+    void loadInvoice(invoice.id)
+  }
+
   if (loading) {
     return <p className="px-6 py-10 text-center text-sm text-slate-400">Loading invoice…</p>
   }
@@ -405,6 +447,14 @@ export default function InvoiceDetail() {
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
             >
               Edit Invoice
+            </button>
+          )}
+          {isAdmin && !invoice.superseded && !invoice.void && (
+            <button
+              onClick={openDateModal}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100"
+            >
+              Change Date
             </button>
           )}
           {isAdmin && (
@@ -510,7 +560,7 @@ export default function InvoiceDetail() {
               Invoice No:{' '}
               <span className="font-semibold text-slate-900">{invoice.invoice_number}</span>
             </p>
-            <p className="mt-1">Date: {formatDate(invoice.created_at)}</p>
+            <p className="mt-1">Date: {formatDate(invoice.invoice_date)}</p>
             {invoice.job_sheets && <p className="mt-1">Job Sheet: {invoice.job_sheets.job_number}</p>}
             {invoice.eway_bill && <p className="mt-1">E-way Bill: {invoice.eway_bill}</p>}
             <p className="mt-1">
@@ -571,7 +621,7 @@ export default function InvoiceDetail() {
                       <p className="mt-0.5 text-xs text-slate-500">
                         Warranty: {item.warranty_days} {warrantyUnitLabels[item.warranty_unit]}
                         {item.warranty_days === 1 ? '' : 's'} (until{' '}
-                        {warrantyUntil(invoice.created_at, item.warranty_days, item.warranty_unit)})
+                        {warrantyUntil(invoice.invoice_date, item.warranty_days, item.warranty_unit)})
                         {item.warranty_notes ? ` — ${item.warranty_notes}` : ''}
                       </p>
                     )}
@@ -738,6 +788,60 @@ export default function InvoiceDetail() {
               className="rounded-xl bg-red-600 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
             >
               {voiding ? 'Voiding…' : 'Void Invoice'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={dateModalOpen} onClose={() => setDateModalOpen(false)} title="Change Invoice Date">
+        <form onSubmit={handleChangeDate} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Corrects the real date of the sale — not when this row happened to be entered.
+            This creates a permanent, visible amendment record.
+          </p>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">New Date</label>
+            <input
+              type="date"
+              required
+              max={localDateString()}
+              value={newInvoiceDate}
+              onChange={(e) => setNewInvoiceDate(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">Reason</label>
+            <textarea
+              required
+              rows={3}
+              value={dateReason}
+              onChange={(e) => setDateReason(e.target.value)}
+              placeholder="e.g. Sale actually happened on the 20th, entered late"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          {dateError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{dateError}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setDateModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={dateSaving}
+              className="rounded-xl bg-slate-900 text-white hover:opacity-90 active:opacity-100 px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {dateSaving ? 'Saving…' : 'Save Date'}
             </button>
           </div>
         </form>

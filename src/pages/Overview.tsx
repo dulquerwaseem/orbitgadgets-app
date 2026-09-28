@@ -93,6 +93,7 @@ export default function Overview() {
         .select('id, invoice_number, final_price, payment_status, customers(name)')
         .eq('superseded', false)
         .eq('void', false)
+        .order('invoice_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(5),
       supabase

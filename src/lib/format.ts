@@ -42,6 +42,16 @@ export function formatDate(value: string | null | undefined) {
   return dateFormatter.format(new Date(value))
 }
 
+// Browser-local YYYY-MM-DD, for <input type="date"> defaults/max. Deliberately
+// NOT `new Date().toISOString().slice(0, 10)` -- toISOString() is always UTC,
+// so between 00:00-05:29 IST that would yield yesterday's date in India.
+export function localDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function formatLabel(value: string | null | undefined) {
   if (!value) return '—'
   return value

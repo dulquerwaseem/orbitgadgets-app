@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrencyExact, formatLabel } from '../lib/format'
+import { formatCurrencyExact, formatLabel, localDateString } from '../lib/format'
 import AddPurchaseItemForm, { itemTypeLabels } from '../components/vendorpurchase/PurchaseItemForm'
 import type { DraftPurchaseItem } from '../components/vendorpurchase/PurchaseItemForm'
 
@@ -31,7 +31,7 @@ export default function VendorPurchaseNew() {
   const [vendors, setVendors] = useState<VendorOption[]>([])
   const [vendorId, setVendorId] = useState('')
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('')
-  const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [purchaseDate, setPurchaseDate] = useState(() => localDateString())
   const [purchaseKind, setPurchaseKind] = useState<PurchaseKind>('stock_in_trade')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<DraftPurchaseItem[]>([])

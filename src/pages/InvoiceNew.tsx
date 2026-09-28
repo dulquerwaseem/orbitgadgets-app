@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrencyExact, formatLabel, round2 } from '../lib/format'
+import { formatCurrencyExact, formatLabel, localDateString, round2 } from '../lib/format'
 import CustomerPicker from '../components/CustomerPicker'
 import type { Customer } from '../components/CustomerPicker'
 import JobSheetPicker from '../components/invoice/JobSheetPicker'
@@ -43,6 +43,7 @@ export default function InvoiceNew() {
   )
   const [customerGst, setCustomerGst] = useState(() => prefill?.customer?.gst_number ?? '')
   const [ewayBill, setEwayBill] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState(() => localDateString())
 
   const [items, setItems] = useState<DraftItem[]>([])
   const [laborCharge, setLaborCharge] = useState('')
@@ -116,6 +117,7 @@ export default function InvoiceNew() {
       p_amount_paid: Number(amountPaidDisplay) || 0,
       p_round_off: roundOff,
       p_tax_inclusive: isTaxInclusive,
+      p_invoice_date: invoiceDate,
       p_items: items.map((item) => ({
         item_type: item.item_type,
         product_id: item.product_id,
@@ -171,6 +173,17 @@ export default function InvoiceNew() {
                   {series === 'gst' ? 'GST' : 'Non-GST'}
                 </button>
               ))}
+            </div>
+            <div className="mt-4">
+              <label className="mb-1.5 block text-sm font-medium text-slate-600">Invoice Date</label>
+              <input
+                type="date"
+                required
+                max={localDateString()}
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+              />
             </div>
             {invoiceSeries === 'gst' && (
               <div className="mt-4 grid grid-cols-2 gap-4">

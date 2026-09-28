@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { formatCurrencyExact, formatDate, formatLabel } from '../../lib/format'
+import { formatCurrencyExact, formatDate, formatLabel, localDateString } from '../../lib/format'
 
 interface PaymentRow {
   id: string
@@ -33,7 +33,7 @@ export default function InvoicePaymentsSection({
   const [showForm, setShowForm] = useState(false)
 
   const [amount, setAmount] = useState('')
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [paymentDate, setPaymentDate] = useState(() => localDateString())
   const [mode, setMode] = useState('cash')
   const [referenceNo, setReferenceNo] = useState('')
   const [notes, setNotes] = useState('')
@@ -59,7 +59,7 @@ export default function InvoicePaymentsSection({
 
   function resetForm() {
     setAmount('')
-    setPaymentDate(new Date().toISOString().slice(0, 10))
+    setPaymentDate(localDateString())
     setMode('cash')
     setReferenceNo('')
     setNotes('')
